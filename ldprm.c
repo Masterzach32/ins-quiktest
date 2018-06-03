@@ -146,8 +146,13 @@ void print_struct(struct short_prm prm)
     printf("baro enabled: %hhu\n", prm.baro_altimeter);
 }
 
+const char* argument_error =
+    "%s: invalid option -- '%s'\n"
+    "type '%s --usage' for more info\n";
+
 const char* usage_help = 
-    "usage: %s infile [-o outfile] [-x swapfile] [-p] [-r dr] [-i s] [-l lx ly lz] [-a h p r]\n"
+    "usage: %s infile [-o outfile] [-x swapfile] "
+            "[-p] [-r dr] [-i s] [-l lx ly lz] [-a h p r]\n"
     "  infile: name of file containing ReadINSPar data\n"
     "  outfile: optional name of output file to contain LoadINSPar command\n"
     "  swapfile: optional name of imitation ReadINSPar file\n"
@@ -163,14 +168,20 @@ int main(int argc, char** argv)
 {
     if (argc < 2)
     {
-        fprintf(stderr, usage_help, argv[0]);
+        fprintf(stderr, "%s: must provide filename\n", argv[0]);
         return 1;
+    }
+
+    if (strcmp(argv[1], "--usage") == 0)
+    {
+        printf(usage_help, argv[0]);
+        return 0;
     }
 
     FILE *fileptr = fopen(argv[1], "rb");
     if (!fileptr)
     {
-        fprintf(stderr, "%s: invalid filename \"%s\"\n", argv[0], argv[1]);
+        fprintf(stderr, "%s: invalid filename '%s'\n", argv[0], argv[1]);
         return 2;
     }
 
@@ -201,6 +212,7 @@ int main(int argc, char** argv)
             outfn = (char*) calloc(strlen(argv[i+1]) + 1, 1);
             strcpy(outfn, argv[i+1]);
             output_flag = 1;
+            ++i;
         }
         else if (strcmp(argv[i], "-x") == 0)
         {
@@ -212,6 +224,7 @@ int main(int argc, char** argv)
             swapfn = (char*) calloc(strlen(argv[i+1]) + 1, 1);
             strcpy(swapfn, argv[i+1]);
             swap_flag = 1;
+            ++i;
         }
         else if (strcmp(argv[i], "-r") == 0)
         {
@@ -240,6 +253,7 @@ int main(int argc, char** argv)
                 fprintf(stderr, "\n");
                 return 3;
             }
+            ++i;
         }
         else if (strcmp(argv[i], "-i") == 0)
         {
@@ -250,6 +264,7 @@ int main(int argc, char** argv)
             }
             init_flag = 1;
             init_input = atoi(argv[i+1]);
+            ++i;
         }
         else if (strcmp(argv[i], "-l") == 0)
         {
@@ -262,6 +277,7 @@ int main(int argc, char** argv)
             lever_input[0] = atof(argv[i+1]);
             lever_input[1] = atof(argv[i+2]);
             lever_input[2] = atof(argv[i+3]);
+            i+=3;
         }
         else if (strcmp(argv[i], "-a") == 0)
         {
@@ -274,10 +290,16 @@ int main(int argc, char** argv)
             angle_input[0] = atof(argv[i+1]);
             angle_input[1] = atof(argv[i+2]);
             angle_input[2] = atof(argv[i+3]);
+            i+=3;
         }
         else if (strcmp(argv[i], "-p") == 0)
         {
             print_flag = 1;
+        }
+        else
+        {
+            fprintf(stderr, argument_error, argv[0], argv[i], argv[0]);
+            return 5;
         }
     }
 
@@ -287,7 +309,7 @@ int main(int argc, char** argv)
 
     if (filelen != 68)
     {
-        fprintf(stderr, "%s: file is not a ReadINSPar response\n", argv[0]);
+        fprintf(stderr, "%s: \"%s\" is not a ReadINSPar response\n", argv[0], argv[1]);
         return 4;
     }
 
