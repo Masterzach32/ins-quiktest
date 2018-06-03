@@ -131,6 +131,39 @@ void struct2payload(const struct short_prm *prm, unsigned char payload[60])
     payload[58] = prm->baro_altimeter;
 }
 
+// prints payload to stdout with helpful labels
+
+void print_payload(const unsigned char payload[60])
+{
+    printf("device name:");
+    for (int i = 50; i < 58; ++i)
+    {
+        printf(" %02x", payload[i]);
+    }
+    printf("\ndata rate: %02x %02x\n", payload[0], payload[1]);
+    printf("initial alignment time: %02x %02x\n",
+            payload[2], payload[3]);
+    printf("magnetic declination: %02x %02x %02x %02x\n",
+            payload[4], payload[5], payload[6], payload[7]);
+    printf("position: %02x %02x %02x %02x, %02x %02x "
+                     "%02x %02x, %02x %02x %02x %02x\n",
+            payload[8], payload[9], payload[10], payload[11],
+            payload[12], payload[13], payload[14], payload[15],
+            payload[16], payload[17], payload[18], payload[19]);
+    printf("date: %02x/%02x/%02x\n", payload[20], payload[21], payload[22]);
+    printf("alignment angles: <%02x %02x, %02x %02x, %02x %02x>\n",
+        payload[23], payload[24], payload[25],
+        payload[26], payload[27], payload[28]);
+    printf("mounting lever: <%02x %02x, %02x %02x, %02x %02x>\n",
+        payload[29], payload[30], payload[31],
+        payload[32], payload[33], payload[34]);
+    printf("lever arm: <%02x %02x, %02x %02x, %02x %02x>\n",
+        payload[35], payload[36], payload[37],
+        payload[38], payload[39], payload[40]);
+    printf("altitude output: %02x\n", payload[41]);
+    printf("baro enabled: %02x\n", payload[58]);
+}
+
 // prints short_prm struct to stdout
 // note: values are printed in SI units, as opposed to the way they're
 // stored in the data structure; for example, magnetic declination
@@ -171,6 +204,7 @@ const char* usage_help =
     "  outfile: optional name of output file to contain LoadINSPar command\n"
     "  swapfile: optional name of imitation ReadINSPar file\n"
     "  [-p]: print INS params in plaintext\n"
+    "  [-h]: print INS params in hex\n"
     "  dr: data rate of INS output, in Hz; must be multiple of 200 Hz\n"
     "  s: INS initial alignment time in seconds\n"
     "  lx ly lz: offset from imu to antenna, in meters\n"
@@ -212,6 +246,7 @@ int main(int argc, char** argv)
     unsigned char output_flag = 0;
     unsigned char swap_flag = 0;
     unsigned char print_flag = 0;
+    unsigned char hex_flag = 0;
 
     // if user provides arguments, they'll be stored here
     unsigned char rate_input;
@@ -338,6 +373,10 @@ int main(int argc, char** argv)
         {
             print_flag = 1;
         }
+        else if (strcmp(argv[i], "-h") == 0) // print hex to stdout flag
+        {
+            hex_flag = 1;
+        }
         else // if any argument is unexpected, throw argument error
         {
             fprintf(stderr, argument_error, argv[0], argv[i], argv[0]);
@@ -382,6 +421,7 @@ int main(int argc, char** argv)
         dat.align_angles[2] = angle_input[2]*100;
     }
     if (print_flag) print_struct(dat);
+    if (hex_flag) print_payload(payload);
     struct2payload(&dat, payload); // and then convert back to a byte payload
 
     // two possible file output structures exist:
