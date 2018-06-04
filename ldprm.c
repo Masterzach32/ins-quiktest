@@ -1,7 +1,11 @@
+#define _BSD_SOURCE
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <inttypes.h>
 #include <string.h>
+#include <fcntl.h>
+#include <unistd.h>
 
 // LoadINSPar data structure as specified in INS ICD
 // revision 2.9, section 6.3.4
@@ -68,6 +72,7 @@ void struct2payload(const struct short_prm *prm, unsigned char payload[60])
 {
     if (!prm) return;
 
+    memset(payload, 0, 60);
     memcpy(payload + 50, prm->device_name, 8);
 
     payload[0] = prm->data_rate & 0xFF;
@@ -213,6 +218,9 @@ const char* usage_help =
 // valid data rates for INS data frame output, in Hz
 const char valid_rates[] = {1, 2, 4, 5, 8, 10, 20, 25, 40, 50, 100, 200};
 
+const char ins_com1[] =
+    "/dev/serial/by-id/usb-FTDI_FT232R_USB_UART_A904D6DE-if00-port0";
+
 int main(int argc, char** argv)
 {
     if (argc < 2) // first argument must be LoadINSPar response file
@@ -247,6 +255,7 @@ int main(int argc, char** argv)
     unsigned char swap_flag = 0;
     unsigned char print_flag = 0;
     unsigned char hex_flag = 0;
+    unsigned char serial_flag = 0;
 
     // if user provides arguments, they'll be stored here
     unsigned char rate_input;
@@ -273,7 +282,7 @@ int main(int argc, char** argv)
             // the global for loop doesn't process any argument more than
             // once; in this case, i is incremented once, because -o expects
             // only one argument
-            // ++i;
+            ++i;
         }
         else if (strcmp(argv[i], "-x") == 0) // check for swapped output flag
         {
@@ -323,7 +332,7 @@ int main(int argc, char** argv)
                 }
                 fprintf(stderr, "\n");
                 return 3;
-            }
+}
             ++i;
         }
         else if (strcmp(argv[i], "-i") == 0) // init alignment time flag
@@ -376,6 +385,10 @@ int main(int argc, char** argv)
         else if (strcmp(argv[i], "-h") == 0) // print hex to stdout flag
         {
             hex_flag = 1;
+        }
+        else if (strcmp(argv[i], "-s") == 0) // send command to serial flag
+        {
+            serial_flag = 1;
         }
         else // if any argument is unexpected, throw argument error
         {
@@ -448,15 +461,23 @@ int main(int argc, char** argv)
 
     if (output_flag) // write a LoadINSPar command file
     {
-        FILE *outfile = fopen(outfn, "wb");
+        FILE *outfile = fopen(outfn, "w");
         if (!outfile)
         {
             fprintf(stderr, "%s: failed to open output file '%s'\n", argv[0], outfn);
             return 5;
         }
-        fwrite(command, sizeof(command), 1, outfile);
-        fwrite(payload, sizeof(payload), 1, outfile);
-        fflush(outfile);
+        fprintf(outfile, "!HEX");
+
+        for (int i = 0; i < sizeof(command); ++i)
+        {
+            fprintf(outfile, " %02X", command[i]);
+        }
+        for (int i = 0; i < sizeof(payload); ++i)
+        {
+            fprintf(outfile, " %02X", payload[i]);
+        }
+        fprintf(outfile, "\n");
         fclose(outfile);
     }
     if (swap_flag) // write an imitation ReadINSPar response
@@ -472,6 +493,51 @@ int main(int argc, char** argv)
         fwrite(checksum, sizeof(checksum), 1, swapfile);
         fflush(swapfile);
         fclose(swapfile);
+    }
+    if (serial_flag)
+    {
+        int fd = open(ins_com1, O_RDWR | O_NOCTTY | O_NDELAY);
+        if (fd == -1)
+        {
+            fprintf(stderr, "%s: failed to open %s\n", ins_com1);
+            return 7;
+        }
+
+        const unsigned char payload_header[] = {0xAA, 0x55, 1, 0, 0x42};
+        unsigned short _checksum = 1 + 0x42;
+        for (int i = 0; i < 60; ++i)
+        {
+            _checksum += payload[i];
+        }
+
+        const unsigned char checksum_bytes[] = {_checksum & 0xFF, _checksum >> 8};
+
+        for (int i = 0; i < 2; ++i)
+        {
+            printf("0x%02x\n", checksum_bytes[i]);
+        }
+
+        int n = write(fd, command, sizeof(command));
+        usleep(200*1000); // wait 200 milliseconds
+        n += write(fd, payload_header, sizeof(payload_header));
+        n += write(fd, payload, sizeof(payload));
+        n += write(fd, checksum_bytes, sizeof(checksum_bytes));
+        if (n < sizeof(payload_header) + sizeof(payload) + sizeof(checksum_bytes))
+        {
+            fprintf(stderr, "%s: failed to write all bytes "
+                "(%d written)\n", argv[0], n);
+        }
+
+        usleep(3*1000*1000); // wait 3 seconds
+
+        unsigned char response[20] = {0};
+        int x = read(fd, response, sizeof(response));
+
+        for (int i = 0; i < sizeof(response); ++i)
+        {
+            printf("%02x ", response[i]);
+        }
+        printf("\n");
     }
 
     return 0;
