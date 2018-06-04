@@ -56,7 +56,7 @@ void payload2struct(struct short_prm *prm, const unsigned char payload[60])
     prm->mount[0] = payload[29] | (payload[30] << 8);
     prm->mount[1] = payload[31] | (payload[32] << 8);
     prm->mount[2] = payload[33] | (payload[34] << 8);
-    
+
     prm->lever[0] = payload[35] | (payload[36] << 8);
     prm->lever[1] = payload[37] | (payload[38] << 8);
     prm->lever[2] = payload[39] | (payload[40] << 8);
@@ -77,7 +77,7 @@ void struct2payload(const struct short_prm *prm, unsigned char payload[60])
 
     payload[0] = prm->data_rate & 0xFF;
     payload[1] = prm->data_rate >> 8;
-    
+
     payload[2] = prm->align_time & 0xFF;
     payload[3] = prm->align_time >> 8;
 
@@ -176,7 +176,7 @@ void print_payload(const unsigned char payload[60])
 
 void print_struct(struct short_prm prm)
 {
-    printf("device name: %s\n", prm.device_name); 
+    printf("device name: %s\n", prm.device_name);
     printf("data rate: %hu Hz\n", prm.data_rate);
     printf("initial alignment time: %hu seconds\n", prm.align_time);
     printf("magnetic declination: %0.2f degrees\n", prm.mag_dec/100.0);
@@ -197,17 +197,13 @@ void print_struct(struct short_prm prm)
     printf("baro enabled: %hhu\n", prm.baro_altimeter);
 }
 
-
 const char* argument_error =
     "%s: invalid option -- '%s'\n"
     "type '%s --usage' for more info\n";
 
-const char* usage_help = 
-    "usage: %s infile [-o outfile] [-x swapfile] "
-            "[-p] [-r dr] [-i s] [-l lx ly lz] [-a h p r]\n"
-    "  infile: name of file containing ReadINSPar data\n"
-    "  outfile: optional name of output file to contain LoadINSPar command\n"
-    "  swapfile: optional name of imitation ReadINSPar file\n"
+const char* usage_help =
+    "usage: %s device [-p] [-r dr] [-i s] [-l lx ly lz] [-a h p r]\n"
+    "  device: INS COM1 serial device path"
     "  [-p]: print INS params in plaintext\n"
     "  [-h]: print INS params in hex\n"
     "  dr: data rate of INS output, in Hz; must be multiple of 200 Hz\n"
@@ -218,14 +214,11 @@ const char* usage_help =
 // valid data rates for INS data frame output, in Hz
 const char valid_rates[] = {1, 2, 4, 5, 8, 10, 20, 25, 40, 50, 100, 200};
 
-const char ins_com1[] =
-    "/dev/serial/by-id/usb-FTDI_FT232R_USB_UART_A904D6DE-if00-port0";
-
 int main(int argc, char** argv)
 {
-    if (argc < 2) // first argument must be LoadINSPar response file
+    if (argc < 2) // first argument must be INS COM1 device
     {
-        fprintf(stderr, "%s: must provide filename\n", argv[0]);
+        fprintf(stderr, "%s: must provide file path\n", argv[0]);
         return 1;
     }
 
@@ -238,11 +231,11 @@ int main(int argc, char** argv)
     }
 
     // open the LoadINSPar file; if can't open, return error
-    FILE *fileptr = fopen(argv[1], "rb");
-    if (!fileptr)
+    int com1 = open(argv[1], O_RDWR | O_NOCTTY | O_NDELAY);
+    if (com1 == -1)
     {
-        fprintf(stderr, "%s: failed to open '%s'\n", argv[0], argv[1]);
-        return 2;
+        fprintf(stderr, "%s: failed to open %s\n", argv[0], argv[1]);
+        return 1;
     }
 
     // these flags indicate whether each flag has appeared in argv,
@@ -251,57 +244,23 @@ int main(int argc, char** argv)
     unsigned char init_flag = 0;
     unsigned char lever_flag = 0;
     unsigned char angle_flag = 0;
-    unsigned char output_flag = 0;
-    unsigned char swap_flag = 0;
     unsigned char print_flag = 0;
     unsigned char hex_flag = 0;
-    unsigned char serial_flag = 0;
 
     // if user provides arguments, they'll be stored here
     unsigned char rate_input;
     unsigned char init_input;
     double lever_input[3];
     double angle_input[3];
-    char* outfn;
-    char* swapfn;
 
     for (int i = 2; i < argc; ++i) // process every element in argv
     {
-        if (strcmp(argv[i], "-o") == 0) // check for output flag
-        {
-            if (argc < i + 2) // verify at least one more argument exists
-            {
-                fprintf(stderr, usage_help, argv[0]);
-                return 3;
-            }
-            outfn = (char*) calloc(strlen(argv[i+1]) + 1, 1);
-            strcpy(outfn, argv[i+1]);
-            output_flag = 1;
-
-            // in all of these logical pathways, i is incremented so that
-            // the global for loop doesn't process any argument more than
-            // once; in this case, i is incremented once, because -o expects
-            // only one argument
-            ++i;
-        }
-        else if (strcmp(argv[i], "-x") == 0) // check for swapped output flag
+        if (strcmp(argv[i], "-r") == 0) // data rate flag
         {
             if (argc < i + 2)
             {
                 fprintf(stderr, usage_help, argv[0]);
-                return 3;
-            }
-            swapfn = (char*) calloc(strlen(argv[i+1]) + 1, 1);
-            strcpy(swapfn, argv[i+1]);
-            swap_flag = 1;
-            ++i;
-        }
-        else if (strcmp(argv[i], "-r") == 0) // data rate flag
-        {
-            if (argc < i + 2)
-            {
-                fprintf(stderr, usage_help, argv[0]);
-                return 3;
+                return 1;
             }
             rate_input = atoi(argv[i+1]);
 
@@ -331,8 +290,8 @@ int main(int argc, char** argv)
                     if (i < num_of_rates - 1) fprintf(stderr, ", ");
                 }
                 fprintf(stderr, "\n");
-                return 3;
-}
+                return 1;
+            }
             ++i;
         }
         else if (strcmp(argv[i], "-i") == 0) // init alignment time flag
@@ -340,7 +299,7 @@ int main(int argc, char** argv)
             if (argc < i + 2)
             {
                 fprintf(stderr, usage_help, argv[0]);
-                return 3;
+                return 1;
             }
             init_flag = 1;
             init_input = atoi(argv[i+1]);
@@ -353,7 +312,7 @@ int main(int argc, char** argv)
             if (argc < i + 4)
             {
                 fprintf(stderr, usage_help, argv[0]);
-                return 3;
+                return 1;
             }
 
             lever_flag = 1;
@@ -370,7 +329,7 @@ int main(int argc, char** argv)
             if (argc < i + 4)
             {
                 fprintf(stderr, usage_help, argv[0]);
-                return 4;
+                return 1;
             }
             angle_flag = 1;
             angle_input[0] = atof(argv[i+1]);
@@ -386,16 +345,16 @@ int main(int argc, char** argv)
         {
             hex_flag = 1;
         }
-        else if (strcmp(argv[i], "-s") == 0) // send command to serial flag
-        {
-            serial_flag = 1;
-        }
         else // if any argument is unexpected, throw argument error
         {
             fprintf(stderr, argument_error, argv[0], argv[i], argv[0]);
-            return 5;
+            return 1;
         }
     }
+
+    // this flag will be 1 if any write commands were issued in argv; if not,
+    // the program doesn't need to send a LoadINSPar command at all
+    unsigned char write_flag = rate_flag | init_flag | lever_flag | angle_flag;
 
     // at this point the command line arguments are processed and the program
     // will have exited if any were invalid.
@@ -403,16 +362,36 @@ int main(int argc, char** argv)
     // this block calculates the length of the file given; the expected length
     // is 68 bytes (6 bytes of header, 60 bytes of payload, and 2 bytes of
     // checksum). if the file is not 68 bytes the program will exit.
-    fseek(fileptr, 0, SEEK_END);
-    if (ftell(fileptr) != 68)
-    {
-        fprintf(stderr, "%s: '%s' is not a ReadINSPar response\n", argv[0], argv[1]);
-        return 4;
-    }
-    fseek(fileptr, 6, SEEK_SET); // skip the header (6 bytes)
+
+    // this block reads the entire ReadINSPar message and verifies that
+    // the message structure is as expected, but only keeps the payload
     unsigned char payload[60];
-    fread(payload, 60, 1, fileptr); // read the payload (60 bytes)
-    fclose(fileptr);
+    {
+        const unsigned char ReadINSPar_command[] =
+            {0xAA, 0x55, 0, 0, 7, 0, 0x41, 0x48, 0};
+        unsigned char header[6], checksum[2];
+
+        int x = write(com1, ReadINSPar_command, sizeof(ReadINSPar_command));
+        if (x != sizeof(ReadINSPar_command))
+        {
+            fprintf(stderr, "%s: error sending ReadINSPar command "
+                            "(%d bytes written)\n", argv[0], x);
+            return 1;
+        }
+        usleep(800*1000); // wait for 500 milliseconds
+        x = read(com1, header, sizeof(header)); // read the header
+        x += read(com1, payload, sizeof(payload)); // read the payload
+        x += read(com1, checksum, sizeof(checksum)); // checksum
+
+        // TODO: verify the message contents
+
+        if (x != sizeof(header) + sizeof(payload) + sizeof(checksum))
+        {
+            fprintf(stderr, "%s: error receiving ReadINSPar message "
+                            "(%d bytes read)\n", argv[0], x);
+            return 1;
+        }
+    }
 
     // take the payload and convert to usable primitives
     struct short_prm dat;
@@ -435,110 +414,41 @@ int main(int argc, char** argv)
     }
     if (print_flag) print_struct(dat);
     if (hex_flag) print_payload(payload);
-    struct2payload(&dat, payload); // and then convert back to a byte payload
 
-    // two possible file output structures exist:
-    //
-    // for a LoadINSPar command to be sent to the INS (indicated by
-    // the -o flag, and the output_flag variable), the format is 9 bytes
-    // of command, and 60 bytes of header, for a total of 69 bytes.
-    //
-    // for a ReadINSPar response imitation (indicated by the -x flag,
-    // and the swap_flag variable), the format is 6 bytes of header,
-    // 60 bytes of payload, and 2 bytes of checksum.
+    // if no write flags are enabled, exit here
+    if (!write_flag) return 0;
+
+    // convert the struct back to a byte payload to prepare to send
+    struct2payload(&dat, payload);
 
     const unsigned char command[] = {0xAA, 0x55, 0, 0, 7, 0, 0x40, 0x47, 0};
-    const unsigned char header[] = {0xAA, 0x55, 1, 0x41, 0x42, 0};
-
-    // the checksum for an imitation ReadINSPar message is calculated
-    // by summing the 3rd through 6th bytes of the header, as well as
-    // all the bytes of the payload, into an unsigned short, ignoring
-    // all overflow imposed by the representation.
-    unsigned short sum = 0;
-    for (int i = 2; i < 6; ++i)  sum += header[i];
-    for (int i = 0; i < 60; ++i) sum += payload[i];
-    unsigned char checksum[] = {sum & 0xFF, sum >> 8};
-
-    if (output_flag) // write a LoadINSPar command file
+    const unsigned char header[] = {0xAA, 0x55, 1, 0, 0x42, 0};
+    unsigned short checksum = 1 + 0x42;
+    for (int i = 0; i < 60; ++i)
     {
-        FILE *outfile = fopen(outfn, "w");
-        if (!outfile)
-        {
-            fprintf(stderr, "%s: failed to open output file '%s'\n", argv[0], outfn);
-            return 5;
-        }
-        fprintf(outfile, "!HEX");
-
-        for (int i = 0; i < sizeof(command); ++i)
-        {
-            fprintf(outfile, " %02X", command[i]);
-        }
-        for (int i = 0; i < sizeof(payload); ++i)
-        {
-            fprintf(outfile, " %02X", payload[i]);
-        }
-        fprintf(outfile, "\n");
-        fclose(outfile);
+        checksum += payload[i];
     }
-    if (swap_flag) // write an imitation ReadINSPar response
+    const unsigned char checksum_bytes[] = {checksum & 0xFF, checksum >> 8};
+    unsigned char combined[68];
+    memcpy(combined, header, sizeof(header));
+    memcpy(combined + sizeof(header), payload, sizeof(payload));
+    memcpy(combined + sizeof(header) + sizeof(payload),
+        checksum_bytes, sizeof(checksum_bytes));
+
+    int n = write(com1, command, sizeof(command));
+    usleep(200*1000); // wait 200 milliseconds
+    n += write(com1, combined, sizeof(combined));
+    if (n < sizeof(combined))
     {
-        FILE *swapfile = fopen(swapfn, "wb");
-        if (!swapfile)
-        {
-            fprintf(stderr, "%s: failed to open swap file '%s'\n", argv[0], swapfn);
-            return 6;
-        }
-        fwrite(header, sizeof(header), 1, swapfile);
-        fwrite(payload, sizeof(payload), 1, swapfile);
-        fwrite(checksum, sizeof(checksum), 1, swapfile);
-        fflush(swapfile);
-        fclose(swapfile);
+        fprintf(stderr, "%s: failed to write all bytes "
+            "(%d written)\n", argv[0], n);
     }
-    if (serial_flag)
-    {
-        int fd = open(ins_com1, O_RDWR | O_NOCTTY | O_NDELAY);
-        if (fd == -1)
-        {
-            fprintf(stderr, "%s: failed to open %s\n", ins_com1);
-            return 7;
-        }
 
-        const unsigned char payload_header[] = {0xAA, 0x55, 1, 0, 0x42};
-        unsigned short _checksum = 1 + 0x42;
-        for (int i = 0; i < 60; ++i)
-        {
-            _checksum += payload[i];
-        }
+    usleep(3*1000*1000); // wait 3 seconds
+    unsigned char response[20] = {0};
+    int x = read(com1, response, sizeof(response));
 
-        const unsigned char checksum_bytes[] = {_checksum & 0xFF, _checksum >> 8};
-
-        for (int i = 0; i < 2; ++i)
-        {
-            printf("0x%02x\n", checksum_bytes[i]);
-        }
-
-        int n = write(fd, command, sizeof(command));
-        usleep(200*1000); // wait 200 milliseconds
-        n += write(fd, payload_header, sizeof(payload_header));
-        n += write(fd, payload, sizeof(payload));
-        n += write(fd, checksum_bytes, sizeof(checksum_bytes));
-        if (n < sizeof(payload_header) + sizeof(payload) + sizeof(checksum_bytes))
-        {
-            fprintf(stderr, "%s: failed to write all bytes "
-                "(%d written)\n", argv[0], n);
-        }
-
-        usleep(3*1000*1000); // wait 3 seconds
-
-        unsigned char response[20] = {0};
-        int x = read(fd, response, sizeof(response));
-
-        for (int i = 0; i < sizeof(response); ++i)
-        {
-            printf("%02x ", response[i]);
-        }
-        printf("\n");
-    }
+    // TODO: verify checksum match
 
     return 0;
 }
