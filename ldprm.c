@@ -5,6 +5,7 @@
 #include <inttypes.h>
 #include <string.h>
 #include <fcntl.h>
+#include <termios.h>
 #include <unistd.h>
 
 // LoadINSPar data structure as specified in INS ICD
@@ -203,7 +204,8 @@ const char* argument_error =
 
 const char* usage_help =
     "usage: %s device [-p] [-r dr] [-i s] [-l lx ly lz] [-a h p r]\n"
-    "  device: INS COM1 serial device path"
+    "  device: INS COM1 serial device path\n"
+    "  [-n]: print INS serial number\n"
     "  [-p]: print INS params in plaintext\n"
     "  [-h]: print INS params in hex\n"
     "  dr: data rate of INS output, in Hz; must be multiple of 200 Hz\n"
@@ -237,6 +239,22 @@ int main(int argc, char** argv)
         fprintf(stderr, "%s: failed to open %s\n", argv[0], argv[1]);
         return 1;
     }
+
+    struct termios settings;
+    tcgetattr(com1, &settings);
+    speed_t baudrate = B460800;
+    cfsetspeed(&settings, baudrate);
+    settings.c_iflag &= ~(IGNBRK | BRKINT | PARMRK | ISTRIP |
+        INLCR | IGNCR | ICRNL | IXON );
+    settings.c_oflag &= ~(OPOST | ONLCR);
+    settings.c_lflag &= ~(ISIG | ICANON | IEXTEN | ECHO | ECHOE |
+        ECHOK | ECHOCTL | ECHOKE);
+    settings.c_cflag &= ~(CSIZE | PARENB);
+    settings.c_cflag |= CS8;
+    settings.c_cc[VMIN] = 0;
+    settings.c_cc[VTIME] = 0;
+    tcsetattr(com1, TCSANOW, &settings);
+    tcflush(com1, TCOFLUSH);
 
     // these flags indicate whether each flag has appeared in argv,
     // rate_flag for -r, init_flag for -i, etc. The default state is 0.
@@ -356,6 +374,20 @@ int main(int argc, char** argv)
     // the program doesn't need to send a LoadINSPar command at all
     unsigned char write_flag = rate_flag | init_flag | lever_flag | angle_flag;
 
+    // this block sends the STOP command before sending anything else
+    {
+        const unsigned char STOP_command[] =
+            {0xAA, 0x55, 0, 0, 7, 0, 0xFE, 0x05, 0x01};
+        int x = write(com1, STOP_command, sizeof(STOP_command));
+        if (x != sizeof(STOP_command))
+        {
+            fprintf(stderr, "%s: failed to send stop command "
+                "(%d bytes written)\n", argv[0], x);
+            return 1;
+        }
+        usleep(200*1000); // sleep for 200 milliseconds
+    }
+
     // at this point the command line arguments are processed and the program
     // will have exited if any were invalid.
 
@@ -378,7 +410,7 @@ int main(int argc, char** argv)
                             "(%d bytes written)\n", argv[0], x);
             return 1;
         }
-        usleep(800*1000); // wait for 500 milliseconds
+        usleep(500*1000); // wait for 500 milliseconds
         x = read(com1, header, sizeof(header)); // read the header
         x += read(com1, payload, sizeof(payload)); // read the payload
         x += read(com1, checksum, sizeof(checksum)); // checksum
