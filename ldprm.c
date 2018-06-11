@@ -264,6 +264,7 @@ int main(int argc, char** argv)
     unsigned char angle_flag = 0;
     unsigned char print_flag = 0;
     unsigned char hex_flag = 0;
+    unsigned char name_flag = 0;
 
     // if user provides arguments, they'll be stored here
     unsigned char rate_input;
@@ -363,6 +364,10 @@ int main(int argc, char** argv)
         {
             hex_flag = 1;
         }
+        else if (strcmp(argv[i], "-n") == 0) // print SN to stdout flag
+        {
+            name_flag = 1;
+        }
         else // if any argument is unexpected, throw argument error
         {
             fprintf(stderr, argument_error, argv[0], argv[i], argv[0]);
@@ -446,6 +451,7 @@ int main(int argc, char** argv)
     }
     if (print_flag) print_struct(dat);
     if (hex_flag) print_payload(payload);
+    if (name_flag) printf("%s\n", dat.device_name);
 
     // if no write flags are enabled, exit here
     if (!write_flag) return 0;
