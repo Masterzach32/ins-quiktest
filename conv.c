@@ -123,6 +123,83 @@ void payload2opvt2ahr(struct opvt2ahr *frame, unsigned char payload[129])
     frame->new_gps = payload[129];
 }
 
+void println_opvt2ahr(struct opvt2ahr *frame)
+{
+    if (!frame)
+    {
+        printf("        Heading"
+               "          Pitch"
+               "           Roll"
+               "         Gyro_X"
+               "         Gyro_Y"
+               "         Gyro_Z"
+               "          Acc_X"
+               "          Acc_Y"
+               "          Acc_Z"
+               "         Magn_X"
+               "         Magn_Y"
+               "         Magn_Z"
+               "    Temperature"
+               "            Vdd"
+               "      USW (L/H)"
+               "              Latitude"
+               "      Longitude"
+               "       Altitude"
+               "         V_East"
+               "        V_North"
+               "           V_Up"
+               "       Lat_GNSS"
+               "      Long_GNSS"
+               "    Height_GNSS"
+               "        Hor_spd"
+               "        Trk_gnd"
+               "        Ver_spd"
+               "         ms_gps"
+               "    GNSS_info_1"
+               "    GNSS_info_2"
+               "       #solnSVs"
+               "        latency"
+               "  anglesPosType"
+               "   Heading_GNSS"
+               "    Latency_ms_head"
+               "     Latency_ms_pos"
+               "     Latency_ms_vel"
+               "          P_Bar"
+               "          H_Bar"
+               "        New_GPS\n");
+        return;
+    }
+
+    printf("%15.2f%15.2f%15.2f",
+        frame->heading/100.0, frame->pitch/100.0, frame->roll/100.0);
+    printf("%15.5f%15.5f%15.5f",
+        frame->gyro_x/1E5f, frame->gyro_y/1E5f, frame->gyro_z/1E5f);
+    printf("%15.6f%15.6f%15.6f",
+        frame->acc_x/1E6f, frame->acc_y/1E6f, frame->acc_z/1E6f);
+    printf("%15.1f%15.1f%15.1f",
+        frame->mag_x/10.0, frame->mag_y/10.0, frame->mag_z/10.0);
+    printf("%15.1f%15.2f%23hu",
+        frame->temp/10.0, frame->vinp/100.0, frame->USW);
+
+    printf("%15.9f%15.9f%15.9f",
+        frame->latitude/1E9f, frame->longitude/1E9f, frame->altitude/1E3f);
+    printf("%0.2f %0.2f %0.2f ",
+        frame->v_east/100.0, frame->v_north/100.0, frame->v_up/100.0);
+    printf("%0.8f %0.8f %0.3f ",
+        frame->lat_GNSS/1E9f, frame->lon_GNSS/1E9f, frame->alt_GNSS/1E3f);
+    printf("%0.2f %0.2f %0.2f ",
+        frame->vh_GNSS/100.0, frame->track_grnd/100.0, frame->vup_GNSS/100.0);
+    printf("%ld ", frame->ms_gps);
+    printf("0x%02x 0x%02x ", frame->GNSS_info1, frame->GNSS_info2);
+    printf("%hhu %0.2f %hhu ",
+        frame->solnSVs, frame->v_latency/1E3f, frame->angle_pos_type);
+    printf("%0.2f %hhu %hhu %hhu ",
+        frame->hdg_GNSS/100.0, frame->latency_ms_hdg,
+        frame->latency_ms_pos, frame->latency_ms_vel);
+    printf("%hu %0.2f %02x\n",
+        frame->p_bar*2, frame->h_bar/100.0, frame->new_gps);
+}
+
 void opvt2ahr2payload(struct opvt2ahr *frame, unsigned char payload[129])
 {
     if (!frame) return;
@@ -316,19 +393,30 @@ int main(int argc, char** argv)
     }
 
     unsigned char *file_buffer = (unsigned char*) malloc(filelen);
+    if (!file_buffer)
+    {
+        fprintf(stderr, "%s: memory allocation error\n", argv[0]);
+        return 1;
+    }
+
     fread(file_buffer, 1, filelen, infile);
     fclose(infile);
-    printf("file is %llu bytes long\n", filelen);
 
-    unsigned long long frame_count = 0;
-    for (int i = 0; i < filelen - 1; ++i)
+    const unsigned long framelen = 129;
+    signed long long rptr = filelen;
+    while (rptr > 0) rptr -= framelen;
+    rptr += framelen;
+    println_opvt2ahr(0);
+    while (rptr < filelen - framelen)
     {
-        if (file_buffer[i] == 0xAA)
-        {
-            ++frame_count;
-        }
+        unsigned char payload[framelen];
+        memcpy(payload, file_buffer + rptr, sizeof(payload));
+        struct opvt2ahr frame;
+        payload2opvt2ahr(&frame, payload);
+        println_opvt2ahr(&frame);
+        rptr += framelen;
+        fprintf(stderr, "\r%02.1f", (100.0*rptr)/filelen);
     }
-    printf("%llu frames counted\n", frame_count);
-    fclose(infile);
+    fprintf(stderr, "       \rDone.\n");
     return 0;
 }
