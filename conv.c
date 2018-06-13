@@ -61,6 +61,10 @@ void payload2opvt2ahr(struct opvt2ahr *frame, unsigned char payload[129])
     frame->vinp = payload[38] | (payload[39] << 8);
     frame->temp = payload[40] | (payload[41] << 8);
 
+    for (int i = 0; i < 8; i++)
+        fprintf(stderr, " %02x", payload[50+i]);
+    fprintf(stderr, "\n");
+
     frame->latitude = payload[42] | (payload[43] << 8) |
         (payload[44] << 16) | (payload[45] << 24) |
         ((long long) payload[46] << 32) |
@@ -73,6 +77,9 @@ void payload2opvt2ahr(struct opvt2ahr *frame, unsigned char payload[129])
         ((long long) payload[55] << 40) |
         ((long long) payload[56] << 48) |
         ((long long) payload[57] << 56);
+
+    fprintf(stderr, "%lld\n", frame->longitude);
+
     frame->altitude = payload[58] | (payload[59] << 8) |
         (payload[60] << 16) | (payload[61]) << 24;
 
@@ -120,7 +127,7 @@ void payload2opvt2ahr(struct opvt2ahr *frame, unsigned char payload[129])
     frame->p_bar = payload[122] | (payload[123] << 8);
     frame->h_bar = payload[124] | (payload[125] << 8) |
         (payload[126] << 16) | (payload[127] << 24);
-    frame->new_gps = payload[129];
+    frame->new_gps = payload[128];
 }
 
 void println_opvt2ahr(struct opvt2ahr *frame)
@@ -142,7 +149,7 @@ void println_opvt2ahr(struct opvt2ahr *frame)
                "    Temperature"
                "            Vdd"
                "      USW (L/H)"
-               "              Latitude"
+               "       Latitude"
                "      Longitude"
                "       Altitude"
                "         V_East"
@@ -173,33 +180,34 @@ void println_opvt2ahr(struct opvt2ahr *frame)
     printf("%15.2f%15.2f%15.2f",
         frame->heading/100.0, frame->pitch/100.0, frame->roll/100.0);
     printf("%15.5f%15.5f%15.5f",
-        frame->gyro_x/1E5f, frame->gyro_y/1E5f, frame->gyro_z/1E5f);
+        frame->gyro_x/1.0E5, frame->gyro_y/1.0E5, frame->gyro_z/1.0E5);
     printf("%15.6f%15.6f%15.6f",
-        frame->acc_x/1E6f, frame->acc_y/1E6f, frame->acc_z/1E6f);
+        frame->acc_x/1.0E6, frame->acc_y/1.0E6, frame->acc_z/1.0E6);
     printf("%15.1f%15.1f%15.1f",
-        frame->mag_x/10.0, frame->mag_y/10.0, frame->mag_z/10.0);
-    printf("%15.1f%15.2f%23hu",
+        frame->mag_x*10.0, frame->mag_y*10.0, frame->mag_z*10.0);
+    printf("%15.1f%15.2f%15hu",
         frame->temp/10.0, frame->vinp/100.0, frame->USW);
-
-    printf("%15.9f%15.9f%15.9f",
-        frame->latitude/1E9f, frame->longitude/1E9f, frame->altitude/1E3f);
-    printf("%0.2f %0.2f %0.2f ",
+    printf("%15.9f%15.9f%15.7f",
+        frame->latitude/1.0E9, frame->longitude/1.0E9, frame->altitude/1.0E3);
+    printf("%15.2f%15.2f%15.2f",
         frame->v_east/100.0, frame->v_north/100.0, frame->v_up/100.0);
-    printf("%0.8f %0.8f %0.3f ",
-        frame->lat_GNSS/1E9f, frame->lon_GNSS/1E9f, frame->alt_GNSS/1E3f);
-    printf("%0.2f %0.2f %0.2f ",
+    printf("%15.9f%15.9f%15.7f",
+        frame->lat_GNSS/1.0E9, frame->lon_GNSS/1.0E9, frame->alt_GNSS/1.0E3);
+    printf("%15.2f%15.2f%15.2f",
         frame->vh_GNSS/100.0, frame->track_grnd/100.0, frame->vup_GNSS/100.0);
-    printf("%ld ", frame->ms_gps);
-    printf("0x%02x 0x%02x ", frame->GNSS_info1, frame->GNSS_info2);
-    printf("%hhu %0.2f %hhu ",
-        frame->solnSVs, frame->v_latency/1E3f, frame->angle_pos_type);
-    printf("%0.2f %hhu %hhu %hhu ",
+    printf("%15lu", frame->ms_gps);
+    printf("%15hhu%15hhu",
+        frame->GNSS_info1, frame->GNSS_info2);
+    printf("%15hhu%15hu%15hhu",
+        frame->solnSVs, frame->v_latency, frame->angle_pos_type);
+    printf("%15.2f%19hhd%19hhd%19hhd",
         frame->hdg_GNSS/100.0, frame->latency_ms_hdg,
         frame->latency_ms_pos, frame->latency_ms_vel);
-    printf("%hu %0.2f %02x\n",
-        frame->p_bar*2, frame->h_bar/100.0, frame->new_gps);
+    printf("%15hu%15.2f%15hhu\n",
+        frame->p_bar, frame->h_bar/100.0, frame->new_gps);
 }
 
+/*
 void opvt2ahr2payload(struct opvt2ahr *frame, unsigned char payload[129])
 {
     if (!frame) return;
@@ -347,6 +355,7 @@ void opvt2ahr2payload(struct opvt2ahr *frame, unsigned char payload[129])
     frame->new_gps = payload[129];
     
 }
+*/
 
 const char* argument_error =
     "%s: invalid option -- '%s'\n"
@@ -418,5 +427,18 @@ int main(int argc, char** argv)
         fprintf(stderr, "\r%02.1f", (100.0*rptr)/filelen);
     }
     fprintf(stderr, "       \rDone.\n");
+    int count = 0;
+    rptr -= framelen;
+    while (rptr < filelen)
+    {
+        fprintf(stderr, "%02x ", file_buffer[rptr++]);
+        ++count;
+        if (count == 25)
+        {
+            fprintf(stderr, "\n");
+            count = 0;
+        }
+    }
+    fprintf(stderr, "\n");
     return 0;
 }
