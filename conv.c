@@ -61,25 +61,22 @@ void payload2opvt2ahr(struct opvt2ahr *frame, unsigned char payload[129])
     frame->vinp = payload[38] | (payload[39] << 8);
     frame->temp = payload[40] | (payload[41] << 8);
 
-    for (int i = 0; i < 8; i++)
-        fprintf(stderr, " %02x", payload[50+i]);
-    fprintf(stderr, "\n");
-
-    frame->latitude = payload[42] | (payload[43] << 8) |
-        (payload[44] << 16) | (payload[45] << 24) |
+    frame->latitude = (long long) payload[42] |
+        ((long long) payload[43] << 8) |
+        ((long long) payload[44] << 16) |
+        ((long long) payload[45] << 24) |
         ((long long) payload[46] << 32) |
         ((long long) payload[47] << 40) |
         ((long long) payload[48] << 48) |
         ((long long) payload[49] << 56);
-    frame->longitude = payload[50] | (payload[51] << 8) |
-        (payload[52] << 16) | (payload[53] << 24) |
+    frame->longitude = (long long) payload[50] |
+        ((long long) payload[51] << 8) |
+        ((long long) payload[52] << 16) |
+        ((long long) payload[53] << 24) |
         ((long long) payload[54] << 32) |
         ((long long) payload[55] << 40) |
         ((long long) payload[56] << 48) |
         ((long long) payload[57] << 56);
-
-    fprintf(stderr, "%lld\n", frame->longitude);
-
     frame->altitude = payload[58] | (payload[59] << 8) |
         (payload[60] << 16) | (payload[61]) << 24;
 
@@ -90,14 +87,18 @@ void payload2opvt2ahr(struct opvt2ahr *frame, unsigned char payload[129])
     frame->v_up = payload[70] | (payload[71] << 8) |
         (payload[72] << 16) | (payload[73] << 24);
 
-    frame->lat_GNSS = payload[74] | (payload[75] << 8) |
-        (payload[76] << 16) | (payload[77] << 24) |
+    frame->lat_GNSS = (long long) payload[74] |
+        ((long long) payload[75] << 8) |
+        ((long long) payload[76] << 16) |
+        ((long long) payload[77] << 24) |
         ((long long) payload[78] << 32) |
         ((long long) payload[79] << 40) |
         ((long long) payload[80] << 48) |
         ((long long) payload[81] << 56);
-    frame->lon_GNSS = payload[82] | (payload[83] << 8) |
-        (payload[84] << 16) | (payload[85] << 24) |
+    frame->lon_GNSS = (long long) payload[82] |
+        ((long long) payload[83] << 8) |
+        ((long long) payload[84] << 16) |
+        ((long long) payload[85] << 24) |
         ((long long) payload[86] << 32) |
         ((long long) payload[87] << 40) |
         ((long long) payload[88] << 48) |
@@ -203,8 +204,8 @@ void println_opvt2ahr(struct opvt2ahr *frame)
     printf("%15.2f%19hhd%19hhd%19hhd",
         frame->hdg_GNSS/100.0, frame->latency_ms_hdg,
         frame->latency_ms_pos, frame->latency_ms_vel);
-    printf("%15hu%15.2f%15hhu\n",
-        frame->p_bar, frame->h_bar/100.0, frame->new_gps);
+    printf("%15lu%15.2f%15hhu\n",
+        ((unsigned long) frame->p_bar)*2, frame->h_bar/100.0, frame->new_gps);
 }
 
 /*
@@ -427,18 +428,5 @@ int main(int argc, char** argv)
         fprintf(stderr, "\r%02.1f", (100.0*rptr)/filelen);
     }
     fprintf(stderr, "       \rDone.\n");
-    int count = 0;
-    rptr -= framelen;
-    while (rptr < filelen)
-    {
-        fprintf(stderr, "%02x ", file_buffer[rptr++]);
-        ++count;
-        if (count == 25)
-        {
-            fprintf(stderr, "\n");
-            count = 0;
-        }
-    }
-    fprintf(stderr, "\n");
     return 0;
 }
