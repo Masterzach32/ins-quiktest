@@ -412,10 +412,8 @@ int main(int argc, char** argv)
     fread(file_buffer, 1, filelen, infile);
     fclose(infile);
 
-    const unsigned long framelen = 129;
-    signed long long rptr = filelen;
-    while (rptr > 0) rptr -= framelen;
-    rptr += framelen;
+    const unsigned long framelen = 129, alignlen = 50;
+    signed long long rptr = alignlen;
     println_opvt2ahr(0);
     while (rptr < filelen - framelen)
     {
