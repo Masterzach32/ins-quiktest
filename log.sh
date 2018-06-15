@@ -31,5 +31,8 @@ stty -F /dev/$portname $baudrate 2>/dev/null
 #           -out serial:://$portname:$baudrate &
 
 read
-sudo killall str2str
+killall str2str
+
+./conv $portname >/dev/null 2>/dev/null
+
 echo "Done."
