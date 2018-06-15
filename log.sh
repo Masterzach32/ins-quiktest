@@ -9,7 +9,8 @@ mkdir -p $folder
 # GREEN COM1 - A904D6DE
 portname=serial/by-id/usb-FTDI_FT232R_USB_UART_A904D6DE-if00-port0
 baudrate=460800
-serialno="$(./ldprm /dev/$portname -n -r 200 -l 1 2 3 -a 30 60 90)"
+serialno="$(./bin/ldprm /dev/$portname --name \
+          --rate 200 --lever 1 2 3 --angles 30 60 90)"
 filename=$serialno-%Y-%m-%d-%h-%M-%S.bin
 ./str2str -in serial://$portname:$baudrate \
           -out file://./$folder/$filename \
@@ -33,6 +34,6 @@ stty -F /dev/$portname $baudrate 2>/dev/null
 read
 killall str2str
 
-./conv $portname >/dev/null 2>/dev/null
+./bin/conv $portname >/dev/null 2>/dev/null
 
 echo "Done."

@@ -214,7 +214,7 @@ const char* usage_help =
     "  h p r: angle offset from vehicle orientation, in degrees\n";
 
 // valid data rates for INS data frame output, in Hz
-const char valid_rates[] = {1, 2, 4, 5, 8, 10, 20, 25, 40, 50, 100, 200};
+const unsigned char valid_rates[] = {1, 2, 4, 5, 8, 10, 20, 25, 40, 50, 100, 200};
 
 int main(int argc, char** argv)
 {
@@ -324,7 +324,7 @@ int main(int argc, char** argv)
             init_input = atoi(argv[i+1]);
             ++i;
         }
-        else if (!strcmp(argv[i], "-l") | strcmp(argv[i], "--lever")) // lever arm flag
+        else if (!strcmp(argv[i], "-l") | !strcmp(argv[i], "--lever")) // lever arm flag
         {
             // verify that there are atleast 3 more arguments, because
             // -l expects lx, ly, and lz
@@ -482,9 +482,9 @@ int main(int argc, char** argv)
             "(%d written)\n", argv[0], n);
     }
 
-    usleep(3*1000*1000); // wait 3 seconds
-    unsigned char response[20] = {0};
-    int x = read(com1, response, sizeof(response));
+    // usleep(3*1000*1000); // wait 3 seconds
+    // unsigned char response[20] = {0};
+    // int x = read(com1, response, sizeof(response));
 
     // TODO: verify checksum match
 
