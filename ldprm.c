@@ -274,7 +274,7 @@ int main(int argc, char** argv)
 
     for (int i = 2; i < argc; ++i) // process every element in argv
     {
-        if (strcmp(argv[i], "-r") == 0) // data rate flag
+        if (!strcmp(argv[i], "-r") | !strcmp(argv[i], "--rate")) // data rate flag
         {
             if (argc < i + 2)
             {
@@ -313,7 +313,7 @@ int main(int argc, char** argv)
             }
             ++i;
         }
-        else if (strcmp(argv[i], "-i") == 0) // init alignment time flag
+        else if (!strcmp(argv[i], "-i") | !strcmp(argv[i], "--init")) // init alignment time flag
         {
             if (argc < i + 2)
             {
@@ -324,7 +324,7 @@ int main(int argc, char** argv)
             init_input = atoi(argv[i+1]);
             ++i;
         }
-        else if (strcmp(argv[i], "-l") == 0) // lever arm flag
+        else if (!strcmp(argv[i], "-l") | strcmp(argv[i], "--lever")) // lever arm flag
         {
             // verify that there are atleast 3 more arguments, because
             // -l expects lx, ly, and lz
@@ -342,7 +342,7 @@ int main(int argc, char** argv)
             // likewise, i is incremented by 3, because -l uses 3 arguments
             i+=3;
         }
-        else if (strcmp(argv[i], "-a") == 0) // alignment angles flag
+        else if (!strcmp(argv[i], "-a") | !strcmp(argv[i], "--angles")) // alignment angles flag
         {
             // -a is similar to -l in structure
             if (argc < i + 4)
@@ -356,15 +356,15 @@ int main(int argc, char** argv)
             angle_input[2] = atof(argv[i+3]);
             i+=3;
         }
-        else if (strcmp(argv[i], "-p") == 0) // print to stdout flag
+        else if (!strcmp(argv[i], "-p") | !strcmp(argv[i], "--print")) // print to stdout flag
         {
             print_flag = 1;
         }
-        else if (strcmp(argv[i], "-h") == 0) // print hex to stdout flag
+        else if (!strcmp(argv[i], "-h") | !strcmp(argv[i], "--hex")) // print hex to stdout flag
         {
             hex_flag = 1;
         }
-        else if (strcmp(argv[i], "-n") == 0) // print SN to stdout flag
+        else if (!strcmp(argv[i], "-n") | !strcmp(argv[i], "--name")) // print SN to stdout flag
         {
             name_flag = 1;
         }
