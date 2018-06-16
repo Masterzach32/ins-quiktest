@@ -4,6 +4,21 @@
 #include <string.h>
 #include <fcntl.h>
 
+#include <Eigen/Core>
+
+struct header_data
+{
+    // initial alignment data stored in the first 50
+    // bytes of INS binary log
+
+    float gyro_bias[3], avg_accel[3], avg_mag[3],
+          init_hdg, init_roll, init_pitch;
+    unsigned short USW;
+
+    // pvoffset applied in post-test conversion    
+    double pvoffset[3];
+};
+
 struct opvt2ahr
 {
     unsigned short heading;
@@ -30,6 +45,23 @@ struct opvt2ahr
     unsigned long h_bar;
     unsigned char new_gps;
 };
+
+void payload2header(struct header_data *frame, unsigned char payload[50])
+{
+    if (!frame) return;
+
+    // this code isn't portable!
+    // assumes sizeof(float) == 4, little endian byte ordering,
+    // IEEE 754 floating point representation
+
+    memcpy(&frame->gyro_bias, payload, 12);
+    memcpy(&frame->avg_accel, payload + 12, 12);
+    memcpy(&frame->avg_mag, payload + 24, 12);
+    memcpy(&frame->init_hdg, payload + 36, 4);
+    memcpy(&frame->init_roll, payload + 40, 4);
+    memcpy(&frame->init_pitch, payload + 44, 4);
+    frame->USW = payload[48] | (payload[49] << 8);
+}
 
 void payload2opvt2ahr(struct opvt2ahr *frame, unsigned char payload[129])
 {
@@ -129,6 +161,23 @@ void payload2opvt2ahr(struct opvt2ahr *frame, unsigned char payload[129])
     frame->h_bar = payload[124] | (payload[125] << 8) |
         (payload[126] << 16) | (payload[127] << 24);
     frame->new_gps = payload[128];
+}
+
+void print_header(FILE* out, struct header_data *frame)
+{
+    if (!frame) return;
+
+    fprintf(out, "gyroscope bias: %.5f %.5f %.5f\n",
+        frame->gyro_bias[0], frame->gyro_bias[1], frame->gyro_bias[2]);
+    fprintf(out, "mean acceleration: %.5f %.5f %.5f\n",
+        frame->avg_accel[0], frame->avg_accel[1], frame->avg_accel[2]);
+    fprintf(out, "mean magnetic field: %.5f %.5f %.5f\n",
+        frame->avg_mag[0], frame->avg_mag[1], frame->avg_mag[2]);
+    fprintf(out, "initial orientation: %.3f %.3f %.3f\n",
+        frame->init_hdg, frame->init_pitch, frame->init_roll);
+    fprintf(out, "unit status word: 0x%04x\n", frame->USW);
+    fprintf(out, "post-test applied PV offset: %.2f %.2f %.2f\n",
+        frame->pvoffset[0], frame->pvoffset[1], frame->pvoffset[2]);
 }
 
 void println_opvt2ahr(FILE *out, struct opvt2ahr *frame)
@@ -254,8 +303,10 @@ int main(int argc, char** argv)
     }
 
     unsigned char out_index = 0;
+    unsigned char pvoff_flag = 0;
+    double pvoff_input[3] = {0};
 
-    for (int i = 1; i < argc; ++i)
+    for (int i = 2; i < argc; ++i)
     {
         if (!strcmp(argv[i], "-o") | !strcmp(argv[i], "--out"))
         {
@@ -264,9 +315,28 @@ int main(int argc, char** argv)
                 fprintf(stderr, usage_help, argv[0]);
                 return 1;
             }
-            out_index = i + 1;
+            out_index = ++i;
+        }
+        else if (!strcmp(argv[i], "-pv") | !strcmp(argv[i], "--pvoff"))
+        {
+            if (argc < i + 4)
+            {
+                fprintf(stderr, usage_help, argv[0]);
+                return 1;
+            }
+            pvoff_flag = 1;
+            pvoff_input[0] = atof(argv[++i]);
+            pvoff_input[1] = atof(argv[++i]);
+            pvoff_input[2] = atof(argv[++i]);
+        }
+        else // if any argument is unexpected, throw argument error
+        {
+            fprintf(stderr, argument_error, argv[0], argv[i], argv[0]);
+            return 1;
         }
     }
+
+    if (pvoff_flag) printf("%.2f, %.2f, %.2f\n", pvoff_input[0], pvoff_input[1], pvoff_input[2]);
 
     unsigned char *file_buffer = (unsigned char*) malloc(filelen);
     if (!file_buffer)
@@ -315,20 +385,32 @@ int main(int argc, char** argv)
         return 1;
     }
 
+    unsigned char progress = 0, old_progress = 255;
     const unsigned long framelen = 129, alignlen = 50;
-    signed long long rptr = alignlen;
+    unsigned long long rptr = alignlen;
+    struct header_data header;
+    payload2header(&header, file_buffer);
+
+    if (pvoff_flag) memcpy(header.pvoffset, pvoff_input, 24);
+
+    print_header(outfile, &header);
+    fprintf(outfile, "\n");
     println_opvt2ahr(outfile, 0);
     while (rptr < filelen - framelen)
     {
-        unsigned char payload[framelen];
-        memcpy(payload, file_buffer + rptr, sizeof(payload));
         struct opvt2ahr frame;
-        payload2opvt2ahr(&frame, payload);
+        payload2opvt2ahr(&frame, file_buffer + rptr);
         println_opvt2ahr(outfile, &frame);
         rptr += framelen;
-        fprintf(stderr, "\rWriting to %s: %2lld%%", outfn, (100*rptr)/filelen);
+
+        progress = (100*rptr)/filelen;
+        if (progress != old_progress)
+        {
+            old_progress = progress;
+            fprintf(stderr, "\rWriting to %s: %2hhu%%", outfn, progress);
+        }
     }
+    fprintf(stderr, "\rWriting to %s: Done.\n", outfn);
     fclose(outfile);
-    fprintf(stderr, "\nDone.\n");
     return 0;
 }

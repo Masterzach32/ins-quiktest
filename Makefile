@@ -13,9 +13,9 @@ install:
 	yes | sudo apt install libeigen3-dev
 
 conv: bin/conv
-bin/conv: src/conv.c
+bin/conv: src/conv.cpp
 	@mkdir -p bin/ >/dev/null 2>/dev/null
-	gcc $(CFLAGS) $^ -o $@
+	g++ $(CPPFLAGS) $^ -o $@ $(EIGEN)
 
 ldprm: bin/ldprm
 bin/ldprm: src/ldprm.c
