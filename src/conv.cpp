@@ -4,7 +4,7 @@
 #include <string.h>
 #include <fcntl.h>
 
-#include <Eigen/Core>
+#include <Eigen/Geometry>
 
 struct header_data
 {
@@ -336,8 +336,6 @@ int main(int argc, char** argv)
         }
     }
 
-    if (pvoff_flag) printf("%.2f, %.2f, %.2f\n", pvoff_input[0], pvoff_input[1], pvoff_input[2]);
-
     unsigned char *file_buffer = (unsigned char*) malloc(filelen);
     if (!file_buffer)
     {
@@ -385,12 +383,16 @@ int main(int argc, char** argv)
         return 1;
     }
 
+    FILE *debug = fopen("rotation.txt", "wb");
+    fprintf(debug, "pv offset: %.2f %.2f %.2f\n\n",
+        pvoff_input[0], pvoff_input[1], pvoff_input[2]);
+
     unsigned char progress = 0, old_progress = 255;
     const unsigned long framelen = 129, alignlen = 50;
     unsigned long long rptr = alignlen;
+
     struct header_data header;
     payload2header(&header, file_buffer);
-
     if (pvoff_flag) memcpy(header.pvoffset, pvoff_input, 24);
 
     print_header(outfile, &header);
@@ -400,6 +402,42 @@ int main(int argc, char** argv)
     {
         struct opvt2ahr frame;
         payload2opvt2ahr(&frame, file_buffer + rptr);
+
+        // rotations to radians; heading sign convention
+        // is inverted to follow the right-hand rule
+        double heading = (M_PI/180)*(360 - frame.heading/100.0),
+               pitch = (M_PI/180)*(frame.pitch/100.0),
+               roll = (M_PI/180)*(frame.roll/100.0);
+
+        // rotation convention is Z-X'-Y''
+        auto qz = Eigen::AngleAxisd(heading, Eigen::Vector3d::UnitZ());
+        auto Xp = qz * Eigen::Vector3d::UnitX(),
+             Yp = qz * Eigen::Vector3d::UnitY();
+        auto qx = Eigen::AngleAxisd(pitch, Xp);
+        auto Ypp = qx * Yp;
+        auto qy = Eigen::AngleAxisd(roll, Ypp);
+        Eigen::Quaterniond qw = qz * qx * qy;
+        Eigen::Vector3d offset =
+            {header.pvoffset[0], header.pvoffset[1], header.pvoffset[2]};
+        offset = qw * offset;
+        const unsigned long long R_EARTH = 6371000;
+        signed long long offset_east = (180E9*offset.x())/(R_EARTH*M_PI),
+                         offset_north = (180E9*offset.y())/(R_EARTH*M_PI),
+                         offset_up = 1E3*offset.z();
+
+        fprintf(debug, "%lu : %8.2f %8.2f %8.2f"
+            " : %8.2f %8.2f %8.2f %8.2f"
+            " : %8.2f %8.2f %8.2f"
+            " : %8lld %8lld %8lld\n",
+            frame.ms_gps, heading*180/M_PI, pitch*180/M_PI, roll*180/M_PI,
+            qw.w(), qw.x(), qw.y(), qw.z(),
+            offset.x(), offset.y(), offset.z(),
+            offset_east, offset_north, offset_up);
+
+        frame.latitude += offset_north;
+        frame.longitude += offset_east;
+        frame.altitude += offset_up;
+
         println_opvt2ahr(outfile, &frame);
         rptr += framelen;
 
@@ -412,5 +450,6 @@ int main(int argc, char** argv)
     }
     fprintf(stderr, "\rWriting to %s: Done.\n", outfn);
     fclose(outfile);
+    fclose(debug);
     return 0;
 }
