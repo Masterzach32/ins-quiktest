@@ -6,6 +6,7 @@
 
 #include <Eigen/Geometry>
 
+/*
 struct header_data
 {
     // initial alignment data stored in the first 50
@@ -18,6 +19,7 @@ struct header_data
     // pvoffset applied in post-test conversion    
     double pvoffset[3];
 };
+*/
 
 struct opvt2ahr
 {
@@ -46,6 +48,7 @@ struct opvt2ahr
     unsigned char new_gps;
 };
 
+/*
 void payload2header(struct header_data *frame, unsigned char payload[50])
 {
     if (!frame) return;
@@ -62,6 +65,7 @@ void payload2header(struct header_data *frame, unsigned char payload[50])
     memcpy(&frame->init_pitch, payload + 44, 4);
     frame->USW = payload[48] | (payload[49] << 8);
 }
+*/
 
 void payload2opvt2ahr(struct opvt2ahr *frame, unsigned char payload[129])
 {
@@ -163,6 +167,7 @@ void payload2opvt2ahr(struct opvt2ahr *frame, unsigned char payload[129])
     frame->new_gps = payload[128];
 }
 
+/*
 void print_header(FILE* out, struct header_data *frame)
 {
     if (!frame) return;
@@ -179,6 +184,7 @@ void print_header(FILE* out, struct header_data *frame)
     fprintf(out, "post-test applied PV offset: %.2f %.2f %.2f\n",
         frame->pvoffset[0], frame->pvoffset[1], frame->pvoffset[2]);
 }
+*/
 
 void println_opvt2ahr(FILE *out, struct opvt2ahr *frame)
 {
@@ -199,7 +205,7 @@ void println_opvt2ahr(FILE *out, struct opvt2ahr *frame)
                "         Magn_Z"
                "    Temperature"
                "            Vdd"
-               "      USW (L/H)"
+               "            USW"
                "       Latitude"
                "      Longitude"
                "       Altitude"
@@ -400,15 +406,12 @@ int main(int argc, char** argv)
     }
 
     unsigned char progress = 0, old_progress = 255;
-    const unsigned long framelen = 129, alignlen = 50;
-    unsigned long long rptr = alignlen;
+    const unsigned long framelen = 129;
+    unsigned long long rptr = filelen;
+    while (rptr > framelen) rptr -= framelen;
 
-struct header_data header;
-    payload2header(&header, file_buffer);
-    if (pvoff_flag) memcpy(header.pvoffset, pvoff_input, 24);
-
-    print_header(outfile, &header);
-    fprintf(outfile, "\n");
+    fprintf(outfile, "post-test applied PV offset: %.2f %.2f %.2f\n\n",
+        pvoff_input[0], pvoff_input[1], pvoff_input[2]);
     println_opvt2ahr(outfile, 0);
     while (rptr < filelen - framelen)
     {
@@ -426,7 +429,7 @@ struct header_data header;
             // calculate rotation quaternion
             // rotation convention is Z-X'-Y''
             const Eigen::Vector3d const_offset =
-                {header.pvoffset[0], header.pvoffset[1], header.pvoffset[2]};
+                {pvoff_input[0], pvoff_input[1], pvoff_input[2]};
             auto qz = Eigen::AngleAxisd(heading, Eigen::Vector3d::UnitZ());
             auto Xp = qz * Eigen::Vector3d::UnitX(),
                  Yp = qz * Eigen::Vector3d::UnitY();
