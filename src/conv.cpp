@@ -6,7 +6,6 @@
 
 #include <Eigen/Geometry>
 
-/*
 struct header_data
 {
     // initial alignment data stored in the first 50
@@ -15,11 +14,7 @@ struct header_data
     float gyro_bias[3], avg_accel[3], avg_mag[3],
           init_hdg, init_roll, init_pitch;
     unsigned short USW;
-
-    // pvoffset applied in post-test conversion    
-    double pvoffset[3];
 };
-*/
 
 struct opvt2ahr
 {
@@ -48,7 +43,6 @@ struct opvt2ahr
     unsigned char new_gps;
 };
 
-/*
 void payload2header(struct header_data *frame, unsigned char payload[50])
 {
     if (!frame) return;
@@ -65,7 +59,6 @@ void payload2header(struct header_data *frame, unsigned char payload[50])
     memcpy(&frame->init_pitch, payload + 44, 4);
     frame->USW = payload[48] | (payload[49] << 8);
 }
-*/
 
 void payload2opvt2ahr(struct opvt2ahr *frame, unsigned char payload[129])
 {
@@ -167,7 +160,6 @@ void payload2opvt2ahr(struct opvt2ahr *frame, unsigned char payload[129])
     frame->new_gps = payload[128];
 }
 
-/*
 void print_header(FILE* out, struct header_data *frame)
 {
     if (!frame) return;
@@ -181,10 +173,7 @@ void print_header(FILE* out, struct header_data *frame)
     fprintf(out, "initial orientation: %.3f %.3f %.3f\n",
         frame->init_hdg, frame->init_pitch, frame->init_roll);
     fprintf(out, "unit status word: 0x%04x\n", frame->USW);
-    fprintf(out, "post-test applied PV offset: %.2f %.2f %.2f\n",
-        frame->pvoffset[0], frame->pvoffset[1], frame->pvoffset[2]);
 }
-*/
 
 void println_opvt2ahr(FILE *out, struct opvt2ahr *frame)
 {
@@ -307,7 +296,7 @@ int main(int argc, char** argv)
         fprintf(stderr, "%s: %s is an empty file\n", argv[0], argv[1]);
         return 1;
     }
-    const unsigned long framelen = 129;
+    const unsigned long framelen = 137;
     if (filelen < framelen)
     {
         fprintf(stderr, "%s: %s is not long enough\n", argv[0], argv[1]);
@@ -412,16 +401,54 @@ int main(int argc, char** argv)
     }
 
     unsigned char progress = 0, old_progress = 255;
-    unsigned long long rptr = filelen;
-    while (rptr > framelen) rptr -= framelen;
+    unsigned long long rptr = 0;
 
-    fprintf(outfile, "post-test applied PV offset: %.2f %.2f %.2f\n\n",
+    fprintf(outfile, "post-test applied PV offset: %.2f %.2f %.2f\n",
         pvoff_input[0], pvoff_input[1], pvoff_input[2]);
-    println_opvt2ahr(outfile, 0);
-    while (rptr < filelen - framelen)
+
+    // TODO: include checksum verification
+
+    // verify ACK
+    if ((file_buffer[0] != 0xAA) | (file_buffer[1] != 0x55) |
+        (file_buffer[2] != 0x01) | (file_buffer[3] != 0x58) |
+        (file_buffer[4] != 0x08))
     {
+            fprintf(stderr, "%s: file ACK parse error %0llx\n",
+                argv[0], rptr);
+            return 1;
+    }
+
+    rptr += 10;
+    // verify initial alignment block
+    if ((file_buffer[rptr] != 0xAA) | (file_buffer[rptr + 1] != 0x55) |
+        (file_buffer[rptr + 2] != 0x01))
+    {
+            fprintf(stderr, "%s: file align block parse error %0llx\n",
+                argv[0], rptr);
+            return 1;
+    }
+    struct header_data header;
+    payload2header(&header, file_buffer + 16);
+    print_header(outfile, &header);
+    fprintf(outfile, "\n");
+    println_opvt2ahr(outfile, 0);
+    rptr += 58;
+
+    while (rptr < filelen)
+    {
+        // at the beginning of every iteration,
+        // rptr will point at the AA in the beginning
+        // of every packet
+        if ((file_buffer[rptr] != 0xAA) | (file_buffer[rptr+1] != 0x55) |
+            (file_buffer[rptr+2] != 0x01) | (file_buffer[rptr+3] != 0x58) |
+            (file_buffer[rptr+4] != 0x87))
+        {
+            fprintf(stderr, "%s: file parse error at address %0llx\n",
+                argv[0], rptr);
+            return 1;
+        }
         struct opvt2ahr frame;
-        payload2opvt2ahr(&frame, file_buffer + rptr);
+        payload2opvt2ahr(&frame, file_buffer + rptr + 6);
 
         if (pvoff_flag)
         {

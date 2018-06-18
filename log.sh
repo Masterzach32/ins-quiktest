@@ -11,14 +11,14 @@ mkdir -p $folder
 # portname=serial/by-id/usb-FTDI_FT232R_USB_UART_A904D6DE-if00-port0
 portname=ttyUSB0
 baudrate=460800
-serialno="$(./app/ldprm /dev/$portname --name \
-          --rate 200 --lever 1 2 3 --angles 30 60 90 \
-          --init 10)"
-filename=$serialno-$timestamp\.bin
 stty -F /dev/$portname $baudrate 2>/dev/null
+serialno="$(./app/ldprm /dev/$portname --name \
+          --rate 200 --lever 1 2 3 --angles 30 60 90 --init 2)"
+filename=$serialno-$timestamp\.bin
+sleep 3
 ./app/str2str -in serial://$portname:$baudrate \
-          -out file://./$folder/$filename \
-          -c ../cmd/INS_OPVT2AHR.cmd &
+              -out file://./$folder/$filename \
+              -c cmd/INS_OPVT2AHR.cmd &
 
 # GREEN COM2 - A904D6DR
 # portname=serial/by-id/usb-FTDI_FT232R_USB_UART_A904D6DR-if00-port0
