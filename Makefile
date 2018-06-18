@@ -7,17 +7,17 @@ EIGEN = -I /usr/include/eigen3
 all: ldprm conv 
 
 clean:
-	@rm -rf bin >/dev/null 2>/dev/null
+	@rm app/ldprm app/conv >/dev/null 2>/dev/null
 
 install:
 	yes | sudo apt install libeigen3-dev
 
-conv: bin/conv
-bin/conv: src/conv.cpp
-	@mkdir -p bin/ >/dev/null 2>/dev/null
+conv: app/conv
+app/conv: src/conv.cpp
+	@mkdir -p app/ >/dev/null 2>/dev/null
 	g++ $(CPPFLAGS) $^ -o $@ $(EIGEN)
 
-ldprm: bin/ldprm
-bin/ldprm: src/ldprm.c
-	@mkdir -p bin/ >/dev/null 2>/dev/null
+ldprm: app/ldprm
+app/ldprm: src/ldprm.c
+	@mkdir -p app/ >/dev/null 2>/dev/null
 	gcc $(CFLAGS) $^ -o $@

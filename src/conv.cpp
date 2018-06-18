@@ -307,6 +307,12 @@ int main(int argc, char** argv)
         fprintf(stderr, "%s: %s is an empty file\n", argv[0], argv[1]);
         return 1;
     }
+    const unsigned long framelen = 129;
+    if (filelen < framelen)
+    {
+        fprintf(stderr, "%s: %s is not long enough\n", argv[0], argv[1]);
+        return 1;
+    }
 
     unsigned char out_index = 0;
     unsigned char pvoff_flag = 0;
@@ -406,7 +412,6 @@ int main(int argc, char** argv)
     }
 
     unsigned char progress = 0, old_progress = 255;
-    const unsigned long framelen = 129;
     unsigned long long rptr = filelen;
     while (rptr > framelen) rptr -= framelen;
 
