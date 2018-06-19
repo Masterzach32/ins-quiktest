@@ -11,7 +11,7 @@ struct oem7_header
     unsigned char msg_type, port_addr;
     unsigned short msg_len, sequence;
     unsigned char idle_time;
-    
+
     // this is actually an enum:
     unsigned char time_status;
 
@@ -36,14 +36,14 @@ struct inspva
 int payload2inspva(struct inspva *frame, unsigned char *payload)
 {
     if (!frame || !payload) return 1;
-    
+
     if ((payload[0] != 0xAA) || (payload[1] != 0x44) || (payload[2] != 0x12) ||
         (payload[4] != 0xFB) || (payload[5] != 0x01))
     {
         // this isn't the start of a SPAN INSPVA packet
         return 1;
     }
-    
+
     memcpy(frame->header.sync_bytes, payload, 3);
     unsigned short N = (frame->header.header_len = payload[3]);
     frame->header.msg_ID = payload[4] | (payload[5] << 8);
@@ -60,23 +60,23 @@ int payload2inspva(struct inspva *frame, unsigned char *payload)
                               (payload[22] << 16) | (payload[23] << 24);
     frame->header.reserved = payload[24] | (payload[25] << 8);
     frame->header.version = payload[26] | (payload[27] << 8);
-    
+
     frame->week = payload[N] | (payload[N+1] << 8) |
                   (payload[N+2] << 16) | (payload[N+3] << 24);
     memcpy(&frame->seconds, payload+N+4, 8);
-    
+
     memcpy(&frame->latitude, payload+N+12, 8);
     memcpy(&frame->longitude, payload+N+20, 8);
     memcpy(&frame->altitude, payload+N+28, 8);
-    
+
     memcpy(&frame->v_north, payload+N+36, 8);
     memcpy(&frame->v_east, payload+N+44, 8);
     memcpy(&frame->v_up, payload+N+52, 8);
-    
+
     memcpy(&frame->roll, payload+N+60, 8);
     memcpy(&frame->pitch, payload+N+68, 8);
     memcpy(&frame->azimuth, payload+N+76, 8);
-    
+
     frame->status = payload[N+84] | (payload[N+85] << 8) |
                     (payload[N+86] << 16) | (payload[N+87] << 24);
     frame->checksum = payload[N+88] | (payload[N+89] << 8) |
@@ -133,7 +133,7 @@ void println_inspva(FILE *out, struct inspva *frame)
                  "%s," // time_status - string
                  "%hu," // week - ushort
                  "%.3f,%lu,%hx,%hu",
-        frame->header.port_addr, 
+        frame->header.port_addr,
         // frame->header.msg_type,
         // frame->header.msg_len,
         frame->header.sequence,
@@ -263,8 +263,7 @@ int main(int argc, char** argv)
         fprintf(stderr, "%s: failed to open '%s'\n", argv[0], outfn);
         return 1;
     }
-    
-    // unsigned char progress = 0, old_progress = 255;
+
     unsigned long long rptr = 0;
 
     // find first aa 44 12 sequence
@@ -276,9 +275,9 @@ int main(int argc, char** argv)
             rptr = i;
         }
     }
-    
+
     printf("%llx\n", rptr);
-    
+
     struct inspva frame;
     while (rptr < filelen)
     {
@@ -292,4 +291,3 @@ int main(int argc, char** argv)
     fclose(outfile);
     return 0;
 }
-    

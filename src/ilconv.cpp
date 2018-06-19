@@ -401,7 +401,6 @@ int main(int argc, char** argv)
             "voff_east","voff_north","voff_up");
     }
 
-    unsigned char progress = 0, old_progress = 255;
     unsigned long long rptr = 0;
 
     fprintf(outfile, "post-test applied PV offset: %.2f %.2f %.2f\n",
@@ -503,15 +502,7 @@ int main(int argc, char** argv)
         }
         println_opvt2ahr(outfile, &frame);
         rptr += framelen;
-
-        progress = (100*rptr)/filelen;
-        if (progress != old_progress)
-        {
-            old_progress = progress;
-            fprintf(stderr, "\rWriting to %s: %2hhu%%", outfn, progress);
-        }
     }
-    fprintf(stderr, "\rWriting to %s: Done.\n", outfn);
     fclose(outfile);
     if (pvoff_flag) fclose(debug);
     return 0;
