@@ -192,9 +192,9 @@ int main(int argc, char** argv)
     filelen = ftell(infile);
     fseek(infile, 0, SEEK_SET);
 
-    if (filelen == 0)
+    if (filelen < 120)
     {
-        fprintf(stderr, "%s: %s is an empty file\n", argv[0], argv[1]);
+        fprintf(stderr, "%s: %s is too short\n", argv[0], argv[1]);
         return 1;
     }
     unsigned char out_index = 0;
@@ -267,7 +267,7 @@ int main(int argc, char** argv)
     unsigned long long rptr = 0;
 
     // find first aa 44 12 sequence
-    for (int i = 0; rptr == 0; ++i)
+    for (int i = 0; rptr == 0 && i < filelen - 5; ++i)
     {
         if ((file_buffer[i]) == 0xAA && (file_buffer[i+1]) == 0x44 &&
             (file_buffer[i+2] == 0x12) && (file_buffer[i+4] == 0xFB))
@@ -275,8 +275,12 @@ int main(int argc, char** argv)
             rptr = i;
         }
     }
-
-    printf("%llx\n", rptr);
+    if (rptr == 0)
+    {
+        fprintf(stderr, "%s: '%s' does not contain any INSPVA packets\n",
+            argv[0], argv[1]);
+        return 1;
+    }
 
     struct inspva frame;
     while (rptr < filelen)

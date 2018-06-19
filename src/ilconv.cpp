@@ -413,7 +413,7 @@ int main(int argc, char** argv)
         (file_buffer[2] != 0x01) | (file_buffer[3] != 0x58) |
         (file_buffer[4] != 0x08))
     {
-            fprintf(stderr, "%s: file ACK parse error %0llx\n",
+            fprintf(stderr, "%s: file ACK parse error at 0x%02llx\n",
                 argv[0], rptr);
             return 1;
     }
@@ -423,7 +423,7 @@ int main(int argc, char** argv)
     if ((file_buffer[rptr] != 0xAA) | (file_buffer[rptr + 1] != 0x55) |
         (file_buffer[rptr + 2] != 0x01))
     {
-            fprintf(stderr, "%s: file align block parse error %0llx\n",
+            fprintf(stderr, "%s: file align block parse error 0x%02llx\n",
                 argv[0], rptr);
             return 1;
     }
@@ -443,7 +443,7 @@ int main(int argc, char** argv)
             (file_buffer[rptr+2] != 0x01) | (file_buffer[rptr+3] != 0x58) |
             (file_buffer[rptr+4] != 0x87))
         {
-            fprintf(stderr, "%s: file parse error at address %0llx\n",
+            fprintf(stderr, "%s: file parse error at address 0x%02llx\n",
                 argv[0], rptr);
             return 1;
         }
