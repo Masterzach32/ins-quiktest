@@ -29,21 +29,21 @@ sleep 3
               -out file://./$folder/$filename \
               -c cmd/INS_OPVT2AHR.cmd &
 
-portname=ttyUSB1
-baudrate=460800
-filename=$serialno-GNSS-%Y-$timestamp\.gps
-stty -F /dev/$portname $baudrate 2>/dev/null
-./app/str2str -in serial://$portname:$baudrate \
-          -out file://./$folder/$filename &
+# portname=ttyUSB1
+# baudrate=460800
+# filename=$serialno-GNSS-%Y-$timestamp\.gps
+# stty -F /dev/$portname $baudrate 2>/dev/null
+# ./app/str2str -in serial://$portname:$baudrate \
+#               -out file://./$folder/$filename &
 
-portname=ttyUSB2
+portname=ttyUSB1
 baudrate=460800
 filename=SPAN-$timestamp\.bin
 stty -F /dev/$portname $baudrate 2>/dev/null
 ./app/str2str -in serial://$portname:$baudrate \
               -out file://./$folder/$filename &
 
-portname=ttyUSB3
+portname=ttyUSB2
 baudrate=460800
 stty -F /dev/$portname $baudrate 2>/dev/null
 ./app/str2str -in ntrip://inertial:sensor22@us.inertiallabs.com:33101/roof \
