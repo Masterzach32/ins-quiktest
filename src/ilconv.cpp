@@ -6,7 +6,7 @@
 
 #include <Eigen/Geometry>
 
-struct header_data
+struct ins_align_block
 {
     // initial alignment data stored in the first 50
     // bytes of INS binary log
@@ -43,7 +43,7 @@ struct opvt2ahr
     unsigned char new_gps;
 };
 
-void payload2header(struct header_data *frame, unsigned char payload[50])
+void payload2header(struct ins_align_block *frame, unsigned char payload[50])
 {
     if (!frame) return;
 
@@ -160,7 +160,7 @@ void payload2opvt2ahr(struct opvt2ahr *frame, unsigned char payload[129])
     frame->new_gps = payload[128];
 }
 
-void print_header(FILE* out, struct header_data *frame)
+void print_header(FILE* out, struct ins_align_block *frame)
 {
     if (!frame) return;
 
@@ -258,9 +258,10 @@ const char* argument_error =
     "type '%s --usage' for more info\n";
 
 const char* usage_help =
-    "usage: %s infile [-o outfile]\n"
+    "usage: %s infile [-o outfile] [-pv x y z]\n"
     "  infile: file to be converted to text\n"
-    "  outfile: output filename\n";
+    "  outfile: output filename\n"
+    "  x y z: position-velocity offset\n";
 
 int main(int argc, char** argv)
 {
@@ -427,7 +428,7 @@ int main(int argc, char** argv)
                 argv[0], rptr);
             return 1;
     }
-    struct header_data header;
+    struct ins_align_block header;
     payload2header(&header, file_buffer + 16);
     print_header(outfile, &header);
     fprintf(outfile, "\n");

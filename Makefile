@@ -4,18 +4,23 @@ EIGEN = -I /usr/include/eigen3
 
 .PHONY: all clean install
 
-all: ldprm conv 
+all: ldprm ilconv nconv
 
 clean:
-	@rm app/ldprm app/conv >/dev/null 2>/dev/null
+	@rm app/ldprm app/ilconv app/nconv >/dev/null 2>/dev/null
 
 install:
 	yes | sudo apt install libeigen3-dev
 
-conv: app/conv
-app/conv: src/conv.cpp
+ilconv: app/ilconv
+app/ilconv: src/ilconv.cpp
 	@mkdir -p app/ >/dev/null 2>/dev/null
 	g++ $(CPPFLAGS) $^ -o $@ $(EIGEN)
+
+nconv: app/nconv
+app/nconv: src/nconv.c
+	@mkdir -p app/ >/dev/null 2>/dev/null
+	gcc $(CFLAGS) $^ -o $@
 
 ldprm: app/ldprm
 app/ldprm: src/ldprm.c

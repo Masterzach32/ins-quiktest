@@ -40,6 +40,6 @@ read
 killall str2str
 sleep 1
 
-./app/conv ./$folder/$serialno-$timestamp\.bin
+./app/ilconv ./$folder/$serialno-$timestamp\.bin
 
 echo "Done."
