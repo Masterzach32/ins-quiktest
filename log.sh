@@ -9,13 +9,19 @@ make all >/dev/null 2>/dev/null
 ################################################################################
 
 # GREEN COM1 - A904D6DE
-# portname=serial/by-id/usb-FTDI_FT232R_USB_UART_A904D6DE-if00-port0
+GCOM1=serial/by-id/usb-FTDI_FT232R_USB_UART_A904D6DE-if00-port0
 # GREEN COM2 - A904D6DR
-# portname=serial/by-id/usb-FTDI_FT232R_USB_UART_A904D6DR-if00-port0
+GCOM2=serial/by-id/usb-FTDI_FT232R_USB_UART_A904D6DR-if00-port0
 # GREEN COM3 - A904D6DK
-# portname=serial/by-id/usb-FTDI_FT232R_USB_UART_A904D6DK-if00-port0
+GCOM3=serial/by-id/usb-FTDI_FT232R_USB_UART_A904D6DK-if00-port0
+# BLUE COM1 - A904D6DX
+BCOM1=serial/by-id/usb-FTDI_FT232R_USB_UART_A904D6DX-if00-port0
+# BLUE COM2 - A904D6DI
+BCOM2=serial/by-id/usb-FTDI_FT232R_USB_UART_A904D6DI-if00-port0
+# BLUE COM3 - A904D6DL
+BCOM3=serial/by-id/usb-FTDI_FT232R_USB_UART_A904D6DL-if00-port0
 
-portname=ttyUSB0
+portname=$GCOM1
 baudrate=460800
 stty -F /dev/$portname $baudrate 2>/dev/null
 serialno="$(./app/ldprm /dev/$portname --name \
@@ -36,14 +42,15 @@ sleep 3
 # ./app/str2str -in serial://$portname:$baudrate \
 #               -out file://./$folder/$filename &
 
-portname=ttyUSB1
+portname=$BCOM2
 baudrate=460800
 filename=SPAN-$timestamp\.bin
 stty -F /dev/$portname $baudrate 2>/dev/null
 ./app/str2str -in serial://$portname:$baudrate \
-              -out file://./$folder/$filename &
+              -out file://./$folder/$filename \
+              -c cmd/SPAN-start.cmd &
 
-portname=ttyUSB2
+portname=$BCOM3
 baudrate=460800
 stty -F /dev/$portname $baudrate 2>/dev/null
 ./app/str2str -in ntrip://inertial:sensor22@us.inertiallabs.com:33101/roof \

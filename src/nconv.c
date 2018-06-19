@@ -124,7 +124,7 @@ char* insstat_str(unsigned long ins_status)
 
 void println_inspva(FILE *out, struct inspva *frame)
 {
-    fprintf(out, "#INSPVAX,"
+    fprintf(out, "#INSPVAA,"
                  "%hhu," // port_addr - uchar
                  // "%hhu," // msg_type - uchar
                  // "%hu," // msg_len - ushort
