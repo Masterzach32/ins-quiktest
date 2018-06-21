@@ -282,6 +282,7 @@ int main(int argc, char** argv)
         return 1;
     }
 
+    unsigned char progress, old_progress = 255;
     struct inspva frame;
     while (rptr < filelen)
     {
@@ -291,7 +292,15 @@ int main(int argc, char** argv)
             rptr += 120;
         }
         else ++rptr;
+        progress = 100*rptr/filelen;
+        if (progress != old_progress)
+        {
+            old_progress = progress;
+            fprintf(stderr, "\r%s: Writing to %s: %2hhu%%",
+                argv[0], outfn, progress);
+        }
     }
+    fprintf(stderr, "\r%s: Writing to %s: Done.\n", argv[0], outfn);
     fclose(outfile);
     return 0;
 }

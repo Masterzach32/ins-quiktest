@@ -674,9 +674,10 @@ int main(int argc, char** argv)
 
         progress = 100*rptr/filelen;
         if (progress != old_progress)
-            fprintf(stdout, "\r%-2hhu", progress);
+            fprintf(stderr, "\r%s: Writing to %s: %2hhu%%",
+                argv[0], outfn, progress);
     }
-    fprintf(stdout, "\rDone.\n");
+    fprintf(stderr, "\r%s: Writing to %s: Done.\n", argv[0], outfn);
     fclose(outfile);
     if (pvoff_flag) fclose(debug);
     return 0;
