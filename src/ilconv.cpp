@@ -212,9 +212,9 @@ int payload2opvt2ahr(struct opvt2ahr *frame, unsigned char *payload)
 
     frame->v_east = payload[6+62] | (payload[6+63] << 8) |
         (payload[6+64] << 16) | (payload[6+65] << 24);
-    frame->v_north = payload[66] | (payload[6+67] << 8) |
+    frame->v_north = payload[6+66] | (payload[6+67] << 8) |
         (payload[6+68] << 16) | (payload[6+69] << 24);
-    frame->v_up = payload[70] | (payload[6+71] << 8) |
+    frame->v_up = payload[6+70] | (payload[6+71] << 8) |
         (payload[6+72] << 16) | (payload[6+73] << 24);
 
     frame->lat_GNSS = (long long) payload[6+74] |
