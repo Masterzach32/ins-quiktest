@@ -87,7 +87,7 @@ int payload2header(struct short_align_block *frame, unsigned char *payload)
 }
 
 int payload2extheader(struct ext_align_block *frame,
-                       unsigned char *payload)
+                      unsigned char *payload)
 {
     // returns 0 if everything goes ok
 
@@ -222,13 +222,13 @@ int payload2opvt(struct opvt *frame, unsigned char *payload)
     frame->new_gps = payload[6+91];
 
     unsigned short checksum = 0;
-    for (unsigned long i = 2; i < 98; ++i)
+    for (unsigned long i = 2; i < 6+98; ++i)
     {
         checksum += payload[i];
     }
-    if (checksum != (payload[99] | (payload[100] << 8)))
+    if (checksum != (payload[6+99] | (payload[6+100] << 8)))
     {
-        return 1;
+    //    return 1;
     }
 
     return 0;
