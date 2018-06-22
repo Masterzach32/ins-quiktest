@@ -26,3 +26,8 @@ ldprm: app/ldprm
 app/ldprm: src/ldprm.c
 	@mkdir -p app/ >/dev/null 2>/dev/null
 	gcc $(CFLAGS) $^ -o $@
+
+opvt: app/opvt
+app/opvt: src/opvt.c
+	@mkdir -p app/ >/dev/null 2>/dev/null
+	gcc $(CFLAGS) $^ -o $@

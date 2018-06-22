@@ -222,13 +222,13 @@ int payload2opvt(struct opvt *frame, unsigned char *payload)
     frame->new_gps = payload[6+91];
 
     unsigned short checksum = 0;
-    for (unsigned long i = 2; i < 6+98; ++i)
+    for (unsigned long i = 2; i < 6+92; ++i)
     {
         checksum += payload[i];
     }
-    if (checksum != (payload[6+99] | (payload[6+100] << 8)))
+    if (checksum != (payload[6+92] | (payload[6+93] << 8)))
     {
-    //    return 1;
+        return 1;
     }
 
     return 0;
