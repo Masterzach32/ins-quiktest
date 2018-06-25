@@ -1,3 +1,4 @@
 data
 app/*
 !app/str2str
+local.conf

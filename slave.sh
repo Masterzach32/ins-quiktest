@@ -1,5 +1,12 @@
 #/bin/sh!
 
+source local.defaults
+source global.conf
+
+if [ -f local.conf ]; then
+    source local.conf
+fi
+
 echo "Press ENTER to quit."
 timestamp=$(date -u +%Y-%m-%d-%H-%M-%S)
 folder=data/LOG-$timestamp

@@ -1,0 +1,13 @@
+# this file should be copied to a local configuration file
+# of the name 'local.conf', so that these variables and other
+# machine-specific settings can be overwritten or declared
+#
+# file MUST be named 'local.conf' or it will not be read
+
+COM1=ttyUSB0
+COM2=ttyUSB1
+COM3=ttyUSB2
+
+lx=-0.02
+ly=-1.09
+lz=1.23
