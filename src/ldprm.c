@@ -198,16 +198,43 @@ void print_struct(struct short_prm prm)
     printf("baro enabled: %hhu\n", prm.baro_altimeter);
 }
 
+speed_t int2speed_t(unsigned long baudrate)
+{
+    switch (baudrate)
+    {
+        case 9600: return B9600;
+        case 19200: return B19200;
+        case 38400: return B38400;
+        case 57600: return B57600;
+        case 115200: return B115200;
+        case 230400: return B230400;
+        case 460800: return B460800;
+        case 500000: return B500000;
+        case 576000: return B576000;
+        case 921000: return B921600;
+        case 1000000: return B1000000;
+        case 1152000: return B1152000;
+        case 1500000: return B1500000;
+        case 2000000: return B2000000;
+        case 2500000: return B2500000;
+        case 3000000: return B3000000;
+        case 3500000: return B3500000;
+        case 4000000: return B4000000;
+        default: return -1;
+    }
+}
+
 const char* argument_error =
     "%s: invalid option -- '%s'\n"
     "type '%s --usage' for more info\n";
 
 const char* usage_help =
-    "usage: %s device [-p] [-r dr] [-i s] [-l lx ly lz] [-a h p r]\n"
+    "usage: %s device [-p] [-b B] [-r dr] [-i s] [-l lx ly lz] [-a h p r]\n"
     "  device: INS COM1 serial device path\n"
     "  [-n]: print INS serial number\n"
     "  [-p]: print INS params in plaintext\n"
     "  [-h]: print INS params in hex\n"
+    "  B: baudrate of the INS COM1 port\n"
     "  dr: data rate of INS output, in Hz; must be multiple of 200 Hz\n"
     "  s: INS initial alignment time in seconds\n"
     "  lx ly lz: offset from imu to antenna, in meters\n"
@@ -240,9 +267,145 @@ int main(int argc, char** argv)
         return 1;
     }
 
+    // these flags indicate whether each flag has appeared in argv,
+    // rate_flag for -r, init_flag for -i, etc. The default state is 0.
+    unsigned char baud_flag = 0;
+    unsigned char rate_flag = 0;
+    unsigned char init_flag = 0;
+    unsigned char lever_flag = 0;
+    unsigned char angle_flag = 0;
+    unsigned char print_flag = 0;
+    unsigned char hex_flag = 0;
+    unsigned char name_flag = 0;
+
+    // if user provides arguments, they'll be stored here
+    speed_t baud_input;
+    unsigned char rate_input;
+    unsigned char init_input;
+    double lever_input[3];
+    double angle_input[3];
+
+    for (int i = 2; i < argc; ++i) // process every element in argv
+    {
+        // baudrate flag
+        if (!strcmp(argv[i], "-b") | !strcmp(argv[i], "--baud"))
+        {
+            if (argc < i + 2)
+            {
+                fprintf(stderr, usage_help, argv[0]);
+                return 1;
+            }
+            baud_input = int2speed_t(atoi(argv[++i]));
+            baud_flag = 1;
+        }
+        // data rate flag
+        else if (!strcmp(argv[i], "-r") | !strcmp(argv[i], "--rate"))
+        {
+            if (argc < i + 2)
+            {
+                fprintf(stderr, usage_help, argv[0]);
+                return 1;
+            }
+            rate_input = atoi(argv[++i]);
+
+            // this mess is required because only some data rates are allowed
+            // by the INS; if an invalid data rate is provided by the user,
+            // the program must return an error and a helpful message
+
+            unsigned char num_of_rates = sizeof(valid_rates)/sizeof(valid_rates[0]);
+            for (int j = 0; j < num_of_rates; ++j)
+            {
+                // check every valid rate; if the provided rate is one of the
+                // valid ones, the program will use it
+
+                if (rate_input == valid_rates[j])
+                {
+                    rate_flag = 1;
+                }
+            }
+            if (!rate_flag) // if the provided rate is invalid...
+            {
+                fprintf(stderr, "%s: valid data rates are: ", argv[0]);
+
+                // print every valid rate, as provided above main()
+                for (int j = 0; j < num_of_rates; ++j)
+                {
+                    fprintf(stderr, "%hhu", valid_rates[j]);
+                    if (j < num_of_rates - 1) fprintf(stderr, ", ");
+                }
+                fprintf(stderr, "\n");
+                return 1;
+            }
+        }
+        // init alignment time flag
+        else if (!strcmp(argv[i], "-i") | !strcmp(argv[i], "--init"))
+        {
+            if (argc < i + 2)
+            {
+                fprintf(stderr, usage_help, argv[0]);
+                return 1;
+            }
+            init_flag = 1;
+            init_input = atoi(argv[++i]);
+        }
+        // lever arm flag
+        else if (!strcmp(argv[i], "-l") | !strcmp(argv[i], "--lever"))
+        {
+            // verify that there are atleast 3 more arguments, because
+            // -l expects lx, ly, and lz
+            if (argc < i + 4)
+            {
+                fprintf(stderr, usage_help, argv[0]);
+                return 1;
+            }
+
+            lever_flag = 1;
+            lever_input[0] = atof(argv[++i]);
+            lever_input[1] = atof(argv[++i]);
+            lever_input[2] = atof(argv[++i]);
+
+            // likewise, i is incremented by 3, because -l uses 3 arguments
+        }
+        // alignment angle flag
+        else if (!strcmp(argv[i], "-a") | !strcmp(argv[i], "--angles"))
+        {
+            // -a is similar to -l in structure
+            if (argc < i + 4)
+            {
+                fprintf(stderr, usage_help, argv[0]);
+                return 1;
+            }
+            angle_flag = 1;
+            angle_input[0] = atof(argv[++i]);
+            angle_input[1] = atof(argv[++i]);
+            angle_input[2] = atof(argv[++i]);
+        }
+        // print to stdout flag
+        else if (!strcmp(argv[i], "-p") | !strcmp(argv[i], "--print"))
+        {
+            print_flag = 1;
+        }
+        // print hex to stdout flag
+        else if (!strcmp(argv[i], "-h") | !strcmp(argv[i], "--hex"))
+        {
+            hex_flag = 1;
+        }
+        // print SN to stdout flag
+        else if (!strcmp(argv[i], "-n") | !strcmp(argv[i], "--name"))
+        {
+            name_flag = 1;
+        }
+        else // if any argument is unexpected, throw argument error
+        {
+            fprintf(stderr, argument_error, argv[0], argv[i], argv[0]);
+            return 1;
+        }
+    }
+
     struct termios settings;
     tcgetattr(com1, &settings);
     speed_t baudrate = B460800;
+    if (baud_flag) baudrate = baud_input;
     cfsetspeed(&settings, baudrate);
     settings.c_iflag &= ~(IGNBRK | BRKINT | PARMRK | ISTRIP |
         INLCR | IGNCR | ICRNL | IXON );
@@ -255,125 +418,6 @@ int main(int argc, char** argv)
     settings.c_cc[VTIME] = 0;
     tcsetattr(com1, TCSANOW, &settings);
     tcflush(com1, TCOFLUSH);
-
-    // these flags indicate whether each flag has appeared in argv,
-    // rate_flag for -r, init_flag for -i, etc. The default state is 0.
-    unsigned char rate_flag = 0;
-    unsigned char init_flag = 0;
-    unsigned char lever_flag = 0;
-    unsigned char angle_flag = 0;
-    unsigned char print_flag = 0;
-    unsigned char hex_flag = 0;
-    unsigned char name_flag = 0;
-
-    // if user provides arguments, they'll be stored here
-    unsigned char rate_input;
-    unsigned char init_input;
-    double lever_input[3];
-    double angle_input[3];
-
-    for (int i = 2; i < argc; ++i) // process every element in argv
-    {
-        if (!strcmp(argv[i], "-r") | !strcmp(argv[i], "--rate")) // data rate flag
-        {
-            if (argc < i + 2)
-            {
-                fprintf(stderr, usage_help, argv[0]);
-                return 1;
-            }
-            rate_input = atoi(argv[i+1]);
-
-            // this mess is required because only some data rates are allowed
-            // by the INS; if an invalid data rate is provided by the user,
-            // the program must return an error and a helpful message
-
-            unsigned char num_of_rates = sizeof(valid_rates)/sizeof(valid_rates[0]);
-            for (int i = 0; i < num_of_rates; ++i)
-            {
-                // check every valid rate; if the provided rate is one of the
-                // valid ones, the program will use it
-
-                if (rate_input == valid_rates[i])
-                {
-                    rate_flag = 1;
-                }
-            }
-            if (!rate_flag) // if the provided rate is invalid...
-            {
-                fprintf(stderr, "%s: valid data rates are: ", argv[0]);
-
-                // print every valid rate, as provided above main()
-                for (int i = 0; i < num_of_rates; ++i)
-                {
-                    fprintf(stderr, "%hhu", valid_rates[i]);
-                    if (i < num_of_rates - 1) fprintf(stderr, ", ");
-                }
-                fprintf(stderr, "\n");
-                return 1;
-            }
-            ++i;
-        }
-        else if (!strcmp(argv[i], "-i") | !strcmp(argv[i], "--init")) // init alignment time flag
-        {
-            if (argc < i + 2)
-            {
-                fprintf(stderr, usage_help, argv[0]);
-                return 1;
-            }
-            init_flag = 1;
-            init_input = atoi(argv[i+1]);
-            ++i;
-        }
-        else if (!strcmp(argv[i], "-l") | !strcmp(argv[i], "--lever")) // lever arm flag
-        {
-            // verify that there are atleast 3 more arguments, because
-            // -l expects lx, ly, and lz
-            if (argc < i + 4)
-            {
-                fprintf(stderr, usage_help, argv[0]);
-                return 1;
-            }
-
-            lever_flag = 1;
-            lever_input[0] = atof(argv[i+1]);
-            lever_input[1] = atof(argv[i+2]);
-            lever_input[2] = atof(argv[i+3]);
-
-            // likewise, i is incremented by 3, because -l uses 3 arguments
-            i+=3;
-        }
-        else if (!strcmp(argv[i], "-a") | !strcmp(argv[i], "--angles")) // alignment angles flag
-        {
-            // -a is similar to -l in structure
-            if (argc < i + 4)
-            {
-                fprintf(stderr, usage_help, argv[0]);
-                return 1;
-            }
-            angle_flag = 1;
-            angle_input[0] = atof(argv[i+1]);
-            angle_input[1] = atof(argv[i+2]);
-            angle_input[2] = atof(argv[i+3]);
-            i+=3;
-        }
-        else if (!strcmp(argv[i], "-p") | !strcmp(argv[i], "--print")) // print to stdout flag
-        {
-            print_flag = 1;
-        }
-        else if (!strcmp(argv[i], "-h") | !strcmp(argv[i], "--hex")) // print hex to stdout flag
-        {
-            hex_flag = 1;
-        }
-        else if (!strcmp(argv[i], "-n") | !strcmp(argv[i], "--name")) // print SN to stdout flag
-        {
-            name_flag = 1;
-        }
-        else // if any argument is unexpected, throw argument error
-        {
-            fprintf(stderr, argument_error, argv[0], argv[i], argv[0]);
-            return 1;
-        }
-    }
 
     // this flag will be 1 if any write commands were issued in argv; if not,
     // the program doesn't need to send a LoadINSPar command at all

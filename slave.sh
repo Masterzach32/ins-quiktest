@@ -17,14 +17,14 @@ make all >/dev/null 2>/dev/null
 if [ ${BPS_COM1[$1]} -gt 0 ]; then
     portname=$COM1
     baudrate=${BPS_COM1[$1]}
-    echo ${BPS_COM1[$1]}
     stty -F /dev/$portname $baudrate 2>/dev/null
     serialno="$(./app/ldprm /dev/$portname --name \
-              --rate 200 --lever $LX $LY $LZ --angles 0 0 0 --init 7)"
+              --baud ${BPS_COM1[$1]} --rate 200 --init 7 \
+              --angles 0 0 0 --lever ${LX[$1]} $LY $LZ)"
     if [ -z "$serialno" ]; then
         serialno="INS"
     fi
-    filename=$serialno-$timestamp\.bin
+    filename=$serialno-$TIMESTAMP\.bin
     sleep 3
     ./app/str2str -in serial://$portname:$baudrate \
                   -out file://./$folder/$filename \
@@ -34,7 +34,7 @@ fi
 if [ ${BPS_COM2[$1]} -gt 0 ]; then
     portname=$COM2
     baudrate=${BPS_COM2[$1]}
-    filename=$serialno-$timestamp\.gps
+    filename=$serialno-$TIMESTAMP\.gps
     stty -F /dev/$portname $baudrate 2>/dev/null
     ./app/str2str -in serial://$portname:$baudrate \
                   -out file://./$folder/$filename &
