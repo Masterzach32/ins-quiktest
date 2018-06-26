@@ -532,5 +532,7 @@ int main(int argc, char** argv)
 
     // TODO: verify checksum match
 
+    printf("%s: successfully loaded parameters.\n", dat.device_name);
+
     return 0;
 }

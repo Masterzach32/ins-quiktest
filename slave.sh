@@ -2,27 +2,30 @@
 
 source global.conf
 source local.defaults
-
 if [ -f local.conf ]; then
     source local.conf
 fi
 
+TIMESTAMP="$(cat .timestamp)"
+rm .timestamp
+
 folder=data/${COLORS[$1]}-"$TIMESTAMP"
-mkdir -p $folder
+mkdir -p $folder >/dev/null 2>/dev/null
 make all >/dev/null 2>/dev/null
 
 ################################################################################
-
 
 if [ ${BPS_COM1[$1]} -gt 0 ]; then
     portname=$COM1
     baudrate=${BPS_COM1[$1]}
     stty -F /dev/$portname $baudrate 2>/dev/null
-    serialno="$(./app/ldprm /dev/$portname --name \
+    serialno="$(app/ldprm /dev/$portname --name \
               --baud ${BPS_COM1[$1]} --rate 200 --init 7 \
               --angles 0 0 0 --lever ${LX[$1]} $LY $LZ)"
     if [ -z "$serialno" ]; then
-        serialno="INS"
+        echo "$0: error: failed to load INS parameters (${COLORS[$1]})"
+        rm -rf $folder
+        exit
     fi
     filename=$serialno-$TIMESTAMP\.bin
     sleep 3
@@ -44,6 +47,7 @@ if [ ${BPS_COM3[$1]} -gt 0 ]; then
     portname=$COM3
     baudrate=${BPS_COM3[$1]}
     stty -F /dev/$portname $baudrate 2>/dev/null
-    ./app/str2str -in ntrip://inertial:sensor22@us.inertiallabs.com:33101/roof \
-                  -out serial:://$portname:$baudrate &
+    ./app/str2str \
+        -in ntrip://inertial:sensor22@us.inertiallabs.com:33101/roof \
+        -out serial:://$portname:$baudrate &
 fi
