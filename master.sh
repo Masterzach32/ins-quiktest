@@ -1,14 +1,31 @@
-#/bin/sh!
+#!/bin/bash
 
 source global.conf
-source local.defaults
 
-if [ -f local.conf ]; then
-    source local.conf
-fi
+echo "Press ENTER to quit."
 
-scp global.conf $login_red:$remote_dir
+for i in 0 1 2 3 4; do
+    if [ ${BPS_COM1[i]} -gt 0 ] ||
+       [ ${BPS_COM2[i]} -gt 0 ] ||
+       [ ${BPS_COM3[i]} -gt 0 ]; then
 
-echo "$login_red"
-echo "$remote_dir"
-echo "$COM1"
+        scp global.conf ${SLAVE_LOGIN[i]}:$PROJECT_DIR
+        ssh ${SLAVE_LOGIN[i]} cd $PROJECT_DIR && ./slave.sh $i
+        exit
+    fi
+done
+
+read
+
+for i in 0 1 2 3 4; do
+    if [ ${BPS_COM1[i]} -gt 0 ] ||
+       [ ${BPS_COM2[i]} -gt 0 ] ||
+       [ ${BPS_COM3[i]} -gt 0 ]; then
+        mkdir -p data
+        echo "$1"
+        ssh ${SLAVE_LOGIN[i]} killall str2str
+        exit
+    fi
+done
+
+killall str2str
