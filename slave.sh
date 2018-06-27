@@ -23,7 +23,7 @@ if [ ${BPS_COM1[$1]} -gt 0 ]; then
               --baud ${BPS_COM1[$1]} --rate 200 --init 7 \
               --angles 0 0 0 --lever ${LX[$1]} $LY $LZ)"
     if [ -z "$serialno" ]; then
-        echo "$0: error: failed to load INS parameters (${COLORS[$1]})"
+        printf "%-10s%s\n" "[${COLORS[$1]}]" "Error: failed to load INS parameters"
         rm -rf $folder
         exit
     fi
