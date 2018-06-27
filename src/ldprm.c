@@ -434,7 +434,7 @@ int main(int argc, char** argv)
                 "(%d bytes written)\n", argv[0], x);
             return 1;
         }
-        usleep(200*1000); // sleep for 200 milliseconds
+        usleep(1*1000*1000); // sleep for 1 second
     }
 
     // at this point the command line arguments are processed and the program
@@ -495,7 +495,7 @@ int main(int argc, char** argv)
     }
     if (print_flag) print_struct(dat);
     if (hex_flag) print_payload(payload);
-    if (name_flag) printf("%s\n", dat.device_name);
+    if (name_flag) printf("%s", dat.device_name);
 
     // if no write flags are enabled, exit here
     if (!write_flag) return 0;
@@ -532,7 +532,7 @@ int main(int argc, char** argv)
 
     // TODO: verify checksum match
 
-    printf("%s: successfully loaded parameters.\n", dat.device_name);
+    // printf("%s: successfully loaded parameters.\n", dat.device_name);
 
     return 0;
 }
