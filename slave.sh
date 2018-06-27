@@ -1,19 +1,39 @@
 #!/bin/bash
 
+if [ ! -f .project ] # working dir is not in project
+then
+    echo "$0: must be run from within ins-quiktest project directory"
+    exit
+fi
+if [ ! -f .timestamp ] # file created by master
+then
+    echo "$0: can only be executed by master device"
+    exit
+fi
+if [ -f .running ] # file created by slave
+then
+    echo "$0: already running on this machine; only one instance allowed"
+    exit
+fi
+
+touch .running
 source global.conf
 source local.defaults
 if [ -f local.conf ]; then
     source local.conf
 fi
 
-TIMESTAMP="$(cat .timestamp)"
+TIMESTAMP=$(cat .timestamp)
 rm .timestamp
 
-folder=data/${COLORS[$1]}-"$TIMESTAMP"
+folder=data/${COLORS[$1]}-$TIMESTAMP
 mkdir -p $folder >/dev/null 2>/dev/null
 make all >/dev/null 2>/dev/null
 
 ################################################################################
+
+printf "%-10s%s\n" "[${COLORS[$1]}]" \
+    "COM port baudrates: [${BPS_COM1[$1]}, ${BPS_COM2[$1]}, ${BPS_COM3[$1]}]"
 
 if [ ${BPS_COM1[$1]} -gt 0 ]; then
     portname=$COM1
@@ -21,17 +41,16 @@ if [ ${BPS_COM1[$1]} -gt 0 ]; then
     stty -F /dev/$portname $baudrate 2>/dev/null
     serialno="$(app/ldprm /dev/$portname --name \
               --baud ${BPS_COM1[$1]} --rate 200 --init 7 \
-              --angles 0 0 0 --lever ${LX[$1]} $LY $LZ)"
+              --angles 0 0 0 --lever ${LX[$1]} $LY $LZ 2>/dev/null)"
     if [ -z "$serialno" ]; then
-        printf "%-10s%s\n" "[${COLORS[$1]}]" "Error: failed to load INS parameters"
-        serialno="F???????"
-        rm -rf $folder
+        printf "%-10s%s\n" "[${COLORS[$1]}]" "Error: failed to connect to INS"
+        rm -rf data/ .running
         exit
     fi
+    echo $serialno > $folder/.serial
     printf "%-10s%s\n" "[${COLORS[$1]}]" "Connected to device S/N $serialno"
     printf "%-10s%s\n" "[${COLORS[$1]}]" \
-        "COM port baudrates: [${BPS_COM1[$1]}, ${BPS_COM2[$1]}, ${BPS_COM3[$1]}]"
-    printf "%-10s%s\n" "[${COLORS[$1]}]" "Loaded parameters: IMU-ANT-OFF ${LX[$1]}, $LY, $LZ"
+        "Loaded parameters: IMU-ANT-OFF ${LX[$1]}, $LY, $LZ"
     filename=$serialno-$TIMESTAMP\.bin
     sleep 3
     ./app/str2str -in serial://$portname:$baudrate \

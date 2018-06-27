@@ -1,5 +1,17 @@
 #!/bin/bash
 
+if [ ! -f .project ] # working dir is not in project
+then
+    echo "$0: must be run from within ins-quiktest project directory"
+    exit
+fi
+if [ -f .timestamp ] # test is already running
+then
+    echo "$0: already running on this machine; only one instance allowed"
+    exit
+fi
+
+touch .running # prevents slave script from running
 trap '' 2 # disable SIGINT
 source global.conf
 source local.defaults
@@ -8,16 +20,16 @@ if [ -f local.conf ]; then
 fi
 
 TIMESTAMP=$(date -u +%Y-%m-%d-%H-%M-%S)
-folder=data/${COLORS[5]}-"$TIMESTAMP"
+folder=data/${COLORS[0]}-"$TIMESTAMP"
 mkdir -p $folder >/dev/null 2>/dev/null
 make all >/dev/null 2>/dev/null
 echo "$TIMESTAMP" > .timestamp
 
-printf "%-10s%s\n" "[${COLORS[5]}]" "Starting SPAN data with baudrates \
-[${BPS_COM1[5]}, ${BPS_COM2[5]}, ${BPS_COM3[5]}]"
+printf "%-10s%s\n" "[${COLORS[0]}]" "Starting SPAN data with baudrates \
+[${BPS_COM1[0]}, ${BPS_COM2[0]}, ${BPS_COM3[0]}]"
 
 portname=$COM2
-baudrate=${BPS_COM2[5]}
+baudrate=${BPS_COM2[0]}
 filename=SPAN-$TIMESTAMP\.bin
 stty -F /dev/$portname $baudrate 2>/dev/null
 app/str2str -in serial://$portname:$baudrate \
@@ -25,7 +37,7 @@ app/str2str -in serial://$portname:$baudrate \
           -c cmd/SPAN-start.cmd 2>/dev/null &
 
 portname=$COM3
-baudrate=${BPS_COM3[5]}
+baudrate=${BPS_COM3[0]}
 stty -F /dev/$portname $baudrate 2>/dev/null
 app/str2str -in ntrip://inertial:sensor22@us.inertiallabs.com:33101/roof \
           -out serial:://$portname:$baudrate 2>/dev/null &
@@ -34,20 +46,21 @@ app/str2str -in ntrip://inertial:sensor22@us.inertiallabs.com:33101/roof \
 # the slave script if the master switch is enabled, and one of
 # the COM ports is listed with a non-zero baudrate
 
-for (( i=0; i<5; ++i ))
+for (( i=1; i<${#ENABLE[@]}; ++i ))
 do
     if [ ${BPS_COM1[$i]} -gt 0 ] || [ ${BPS_COM2[$i]} -gt 0 ] || [ ${BPS_COM3[$i]} -gt 0 ]; then
         printf "%-10s%s\n" "[${COLORS[$i]}]" \
-            "Syncing repository at ${SLAVE_LOGIN[$i]}:$PROJECT_DIR"
+            "Syncing repository at ${LOGIN[$i]}:$PROJECT_DIR"
         scp global.conf local.defaults slave.sh master.sh .timestamp \
-            ${SLAVE_LOGIN[$i]}:$PROJECT_DIR > /dev/null
+            ${LOGIN[$i]}:$PROJECT_DIR >/dev/null 2>/dev/null
         printf "%-10s%s\n" "[${COLORS[$i]}]" "Starting INS data"
-        ssh ${SLAVE_LOGIN[$i]} -t "cd $PROJECT_DIR && bash slave.sh $i"
+        ssh ${LOGIN[$i]} -t "cd $PROJECT_DIR && bash slave.sh $i" 2>/dev/null
     fi
 done
 
+rm .timestamp
 BEGIN=$(date +%s)
-printf "%-10s%s\n" "[${COLORS[5]}]" "Press [Q] to exit."
+printf "%-10s%s\n" "[${COLORS[0]}]" "Press [Q] to exit."
 
 while true
 do
@@ -57,7 +70,7 @@ do
     let SECS=$(($DIFF % 60))
     let HOURS=$(($DIFF / 3600))
 
-    printf "\r%-10sTest duration: %02d:%02d:%02d" "[${COLORS[5]}]" $HOURS $MINS $SECS
+    printf "\r%-10sTest duration: %02d:%02d:%02d" "[${COLORS[0]}]" $HOURS $MINS $SECS
 
     read -s -t 0.25 -N 1 input
     if [[ $input = "q" ]] || [[ $input = "Q" ]]; then
@@ -66,25 +79,47 @@ do
     fi
 done
 
-printf "%-10s%s\n" "[${COLORS[5]}]" "Ending test..."
+printf "%-10s%s\n" "[${COLORS[0]}]" "Ending test..."
 
-for (( i=0; i<5; ++i ))
+for (( i=1; i<${#ENABLE[@]}; ++i ))
 do
     if [ ${BPS_COM1[$i]} -gt 0 ] || [ ${BPS_COM2[$i]} -gt 0 ] || [ ${BPS_COM3[$i]} -gt 0 ]; then
         printf "%-10s%s\n" "[${COLORS[$i]}]" "Grabbing INS data"
-        scp -rp ${SLAVE_LOGIN[$i]}:$PROJECT_DIR/data/ .
-        ssh ${SLAVE_LOGIN[$i]} -t "killall str2str && rm -rf $PROJECT_DIR/data"
-        printf "%-10s%s\n" "[${COLORS[$i]}]" "Converting INS data"
-        app/ilconv data/${COLORS[$i]}-$TIMESTAMP/F*.bin
+        ssh ${LOGIN[$i]} -t "killall str2str" >/dev/null 2>/dev/null
+        scp -rp ${LOGIN[$i]}:$PROJECT_DIR/data/${COLORS[$i]}-$TIMESTAMP \
+            data/ >/dev/null 2>/dev/null
+        if [ $? -ne 0 ]
+        then
+            printf "%-10s%s\n" "[${COLORS[$i]}]" "Error: failed to collect INS data"
+        else
+            printf "%-10s%s\n" "[${COLORS[$i]}]" "Converting INS data"
+            app/ilconv data/${COLORS[$i]}-$TIMESTAMP/*.bin >/dev/null 2>/dev/null
+            if [ $? -ne 0 ]
+            then
+                printf "%-10s%s\n" "[${COLORS[$i]}]" \
+                    "Error: failed to convert INS log file to txt"
+            fi
+            serialno=$(cat data/${COLORS[$i]}-$TIMESTAMP/.serial)
+            mv data/${COLORS[$i]}-$TIMESTAMP data/$serialno-$TIMESTAMP
+            rm data/$serialno-$TIMESTAMP/.serial
+        fi
+        ssh ${LOGIN[$i]} -t "cd $PROJECT_DIR &&\
+            rm -rf data .running" >/dev/null 2>/dev/null
     fi
 done
 
-printf "%-10s%s\n" "[${COLORS[5]}]" "Converting SPAN data"
-app/nconv data/${COLORS[5]}-$TIMESTAMP/SPAN*.bin
+printf "%-10s%s\n" "[${COLORS[0]}]" "Converting SPAN data"
+app/nconv data/${COLORS[0]}-$TIMESTAMP/SPAN*.bin >/dev/null 2>/dev/null
+if [ $? -ne 0 ]
+then
+    printf "%-10s%s\n" "[${COLORS[0]}]" \
+        "Error: failed to convert SPAN log file to txt"
+fi
 
-rm .timestamp
-
+mv data/${COLORS[0]}-$TIMESTAMP data/SPAN-$TIMESTAMP
+mkdir data/LOG
+mv data/*-$TIMESTAMP data/LOG
+mv data/LOG data/LOG-$TIMESTAMP
 killall str2str >/dev/null
-
-sleep 1
-printf "%-10s%s\n" "[${COLORS[5]}]" "Done."
+rm .running
+printf "%-10s%s\n" "[${COLORS[0]}]" "Done."
