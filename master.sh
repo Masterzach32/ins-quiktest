@@ -103,6 +103,7 @@ do
             mv data/${COLORS[$i]}-$TIMESTAMP data/$serialno-$TIMESTAMP
             rm data/$serialno-$TIMESTAMP/.serial
         fi
+        scp -rp ${LOGIN[$i]}:$PROJECT_DIR/data/LOG-* data/ >/dev/null 2>/dev/null
         ssh ${LOGIN[$i]} -t "cd $PROJECT_DIR &&\
             rm -rf data .running" >/dev/null 2>/dev/null
     fi
