@@ -47,4 +47,4 @@ end
 
 f1=f1(i:end,:);
 span=span(i:end,:);
-clear 
+clear i 

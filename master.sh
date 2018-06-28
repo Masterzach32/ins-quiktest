@@ -32,23 +32,26 @@ mkdir -p $folder >/dev/null 2>/dev/null
 make all >/dev/null 2>/dev/null
 echo "$TIMESTAMP" > .timestamp
 
-printf "%-10s%s %s %s %s\n" "[${COLORS[0]}]" "Starting SPAN data w/ baudrates" \
-    "[${BPS_COM1[0]}, ${BPS_COM2[0]}, ${BPS_COM3[0]}]" \
-    "and lever arm" "[${LX[0]}, ${LY[0]}, ${LZ[0]}]"
+if [ ${ENABLE[0]} -gt 0 ]
+then
+    printf "%-10s%s %s %s %s\n" "[${COLORS[0]}]" "Starting SPAN data w/ baudrates" \
+        "[${BPS_COM1[0]}, ${BPS_COM2[0]}, ${BPS_COM3[0]}]" \
+        "and lever arm" "[${LX[0]}, ${LY[0]}, ${LZ[0]}]"
 
-portname=$COM2
-baudrate=${BPS_COM2[0]}
-filename=SPAN-$TIMESTAMP\.bin
-stty -F /dev/$portname $baudrate 2>/dev/null
-app/str2str -in serial://$portname:$baudrate \
-            -out file://./$folder/$filename \
-            -c cmd/SPAN-start.cmd 2>/dev/null &
+    portname=$COM2
+    baudrate=${BPS_COM2[0]}
+    filename=SPAN-$TIMESTAMP\.bin
+    stty -F /dev/$portname $baudrate 2>/dev/null
+    app/str2str -in serial://$portname:$baudrate \
+                -out file://./$folder/$filename \
+                -c cmd/SPAN-start.cmd 2>/dev/null &
 
-portname=$COM3
-baudrate=${BPS_COM3[0]}
-stty -F /dev/$portname $baudrate 2>/dev/null
-app/str2str -in ntrip://inertial:sensor22@us.inertiallabs.com:33101/roof \
-            -out serial:://$portname:$baudrate 2>/dev/null &
+    portname=$COM3
+    baudrate=${BPS_COM3[0]}
+    stty -F /dev/$portname $baudrate 2>/dev/null
+    app/str2str -in ntrip://inertial:sensor22@us.inertiallabs.com:33101/roof \
+                -out serial:://$portname:$baudrate 2>/dev/null &
+fi
 
 # iterate through all raspberry pi slave devices; only initiate
 # the slave script if the master switch is enabled, and one of
@@ -56,7 +59,10 @@ app/str2str -in ntrip://inertial:sensor22@us.inertiallabs.com:33101/roof \
 
 for (( i=1; i<${#ENABLE[@]}; ++i ))
 do
-    if [ ${BPS_COM1[$i]} -gt 0 ] || [ ${BPS_COM2[$i]} -gt 0 ] || [ ${BPS_COM3[$i]} -gt 0 ]; then
+    # if [ ${ENABLE[$i]} -eq 0 ]
+    # then
+    if [[ (${BPS_COM1[$i]} -gt 0 || ${BPS_COM2[$i]} -gt 0 || ${BPS_COM3[$i]} -gt 0) && ${ENABLE[$i]} -gt 0 ]]
+    then
         printf "%-10s%s\n" "[${COLORS[$i]}]" \
             "Syncing repository at ${LOGIN[$i]}:$PROJECT_DIR"
         scp global.conf local.defaults slave.sh master.sh .timestamp \
@@ -93,7 +99,8 @@ INS_TEXT_FILES=()
 
 for (( i=1; i<${#ENABLE[@]}; ++i ))
 do
-    if [ ${BPS_COM1[$i]} -gt 0 ] || [ ${BPS_COM2[$i]} -gt 0 ] || [ ${BPS_COM3[$i]} -gt 0 ]; then
+    if [[ (${BPS_COM1[$i]} -gt 0 || ${BPS_COM2[$i]} -gt 0 || ${BPS_COM3[$i]} -gt 0) && ${ENABLE[$i]} -gt 0 ]]
+    then
         printf "%-10s%s\n" "[${COLORS[$i]}]" "Grabbing INS data"
         ssh ${LOGIN[$i]} -t "killall str2str" >/dev/null 2>/dev/null
         scp -rp ${LOGIN[$i]}:$PROJECT_DIR/data/${COLORS[$i]}-$TIMESTAMP \
