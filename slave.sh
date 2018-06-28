@@ -48,7 +48,7 @@ if [ ${BPS_COM1[$1]} -gt 0 ]; then
     stty -F /dev/$portname $baudrate 2>/dev/null
     serialno="$(app/ldprm /dev/$portname --name \
               --baud ${BPS_COM1[$1]} --rate 200 --init 7 \
-              --angles 0 0 0 --lever ${LX[$1]} $LY $LZ 2>/dev/null)"
+              --angles 0 0 0 --lever ${LX[$1]} ${LY[$1]} ${LZ[$1]} 2>/dev/null)"
     if [ -z "$serialno" ]; then
         printf "$red%-10s%s\n$end" "[${COLORS[$1]}]" "Error: failed to connect to INS"
         rm -rf data/ .running
@@ -57,7 +57,7 @@ if [ ${BPS_COM1[$1]} -gt 0 ]; then
     echo $serialno > $folder/.serial
     printf "%-10s%s\n" "[${COLORS[$1]}]" "Connected to device S/N $serialno"
     printf "%-10s%s\n" "[${COLORS[$1]}]" \
-        "Loaded parameters: IMU-ANT-OFF ${LX[$1]}, $LY, $LZ"
+        "Loaded parameters: IMU-antenna offset [${LX[$1]}, ${LY[$1]}, ${LZ[$1]}]"
     filename=$serialno-$TIMESTAMP\.bin
     sleep 3
     ./app/str2str -in serial://$portname:$baudrate \

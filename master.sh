@@ -32,8 +32,9 @@ mkdir -p $folder >/dev/null 2>/dev/null
 make all >/dev/null 2>/dev/null
 echo "$TIMESTAMP" > .timestamp
 
-printf "%-10s%s\n" "[${COLORS[0]}]" "Starting SPAN data with baudrates \
-[${BPS_COM1[0]}, ${BPS_COM2[0]}, ${BPS_COM3[0]}]"
+printf "%-10s%s %s %s %s\n" "[${COLORS[0]}]" "Starting SPAN data w/ baudrates" \
+    "[${BPS_COM1[0]}, ${BPS_COM2[0]}, ${BPS_COM3[0]}]" \
+    "and lever arm" "[${LX[0]}, ${LY[0]}, ${LZ[0]}]"
 
 portname=$COM2
 baudrate=${BPS_COM2[0]}
@@ -102,8 +103,13 @@ do
             printf "$red%-10s%s\n$end" "[${COLORS[$i]}]" \
                 "Error: failed to collect INS data"
         else
-            printf "%-10s%s\n" "[${COLORS[$i]}]" "Converting INS data"
-            app/ilconv data/${COLORS[$i]}-$TIMESTAMP/*.bin >/dev/null 2>/dev/null
+            PVX=$(echo "${LX[$i]} - ${LX[0]}" | bc)
+            PVY=$(echo "${LY[$i]} - ${LY[0]}" | bc)
+            PVZ=$(echo "${LZ[$i]} - ${LZ[0]}" | bc)
+            printf "%-10s%s\n" "[${COLORS[$i]}]" \
+                "Converting INS data w/ PV offset [$PVX, $PVY, $PVZ]"
+            app/ilconv data/${COLORS[$i]}-$TIMESTAMP/*.bin \
+                --pvoff $PVX $PVY $PVZ >/dev/null 2>/dev/null
             if [ $? -ne 0 ]
             then
                 printf "$red%-10s%s\n$end" "[${COLORS[$i]}]" \
@@ -111,7 +117,7 @@ do
             fi
             serialno=$(cat data/${COLORS[$i]}-$TIMESTAMP/.serial)
             mv data/${COLORS[$i]}-$TIMESTAMP data/$serialno-$TIMESTAMP
-            rm data/$serialno-$TIMESTAMP/.serial
+            # rm data/$serialno-$TIMESTAMP/.serial
             INS_TEXT_FILES+=("$serialno-$TIMESTAMP")
         fi
         scp -rp ${LOGIN[$i]}:$PROJECT_DIR/data/LOG-* data/ >/dev/null 2>/dev/null

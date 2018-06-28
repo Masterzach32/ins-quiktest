@@ -544,6 +544,7 @@ int main(int argc, char** argv)
     }
 
     FILE *debug;
+    /*
     if (pvoff_flag)
     {
         debug = fopen("calculations.txt", "wb");
@@ -558,6 +559,7 @@ int main(int argc, char** argv)
             "poff_east","poff_north","poff_up",
             "voff_east","voff_north","voff_up");
     }
+    */
 
     unsigned long long rptr = 0;
 
@@ -682,6 +684,6 @@ int main(int argc, char** argv)
     }
     fprintf(stderr, "\r%s: Writing to %s: Done.\n", argv[0], outfn);
     fclose(outfile);
-    if (pvoff_flag) fclose(debug);
+    // if (pvoff_flag) fclose(debug);
     return 0;
 }
