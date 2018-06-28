@@ -638,7 +638,8 @@ int main(int argc, char** argv)
 
             // add offset to opvt2ahr data frame before printing
             frame.latitude += (180E9*p_offset.y())/(R_EARTH*M_PI);
-            frame.longitude += (180E9*p_offset.x())/(R_EARTH*M_PI);
+            double lat_rad = (M_PI/180)*(frame.latitude/1.0E9);
+            frame.longitude += (180E9*p_offset.x())/(R_EARTH*M_PI*cos(lat_rad));
             frame.altitude += 1E3*p_offset.z();
 
             // turn rate in radians per second
@@ -650,6 +651,7 @@ int main(int argc, char** argv)
             frame.v_north += v_offset.y();
             frame.v_up += v_offset.z();
 
+            /*
             // print useful info to debug file
             fprintf(debug, "%15lu%15.2f"
                 "%15.2f%15.2f%15.2f"
@@ -663,6 +665,7 @@ int main(int argc, char** argv)
                 turn_rate.x(), turn_rate.y(), turn_rate.z(),
                 p_offset.x(), p_offset.y(), p_offset.z(),
                 v_offset.x(), v_offset.y(), v_offset.z());
+            */
         }
 
         if (!error)
