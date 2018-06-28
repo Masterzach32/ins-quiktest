@@ -1,5 +1,9 @@
 #!/bin/bash
 
+red=$'\e[1;31m'
+yellow=$'\e[33m'
+end=$'\e[0m'
+
 if [ ! -f .project ] # working dir is not in project
 then
     echo "$0: must be run from within ins-quiktest project directory"
@@ -21,6 +25,9 @@ source global.conf
 source local.defaults
 if [ -f local.conf ]; then
     source local.conf
+else
+    printf "$yellow%-10s%s\n$end" "[${COLORS[$1]}]" \
+        "Warning: no local config provided, using local.defaults"
 fi
 
 TIMESTAMP=$(cat .timestamp)
@@ -43,7 +50,7 @@ if [ ${BPS_COM1[$1]} -gt 0 ]; then
               --baud ${BPS_COM1[$1]} --rate 200 --init 7 \
               --angles 0 0 0 --lever ${LX[$1]} $LY $LZ 2>/dev/null)"
     if [ -z "$serialno" ]; then
-        printf "%-10s%s\n" "[${COLORS[$1]}]" "Error: failed to connect to INS"
+        printf "$red%-10s%s\n$end" "[${COLORS[$1]}]" "Error: failed to connect to INS"
         rm -rf data/ .running
         exit
     fi

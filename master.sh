@@ -1,5 +1,9 @@
 #!/bin/bash
 
+red=$'\e[1;31m'
+yellow=$'\e[33m'
+end=$'\e[0m'
+
 if [ ! -f .project ] # working dir is not in project
 then
     echo "$0: must be run from within ins-quiktest project directory"
@@ -17,6 +21,9 @@ source global.conf
 source local.defaults
 if [ -f local.conf ]; then
     source local.conf
+else
+    printf "$yellow%-10s%s\n$end" "[${COLORS[0]}]" \
+        "Warning: no local config provided, using local.defaults"
 fi
 
 TIMESTAMP=$(date -u +%Y-%m-%d-%H-%M-%S)
@@ -33,14 +40,14 @@ baudrate=${BPS_COM2[0]}
 filename=SPAN-$TIMESTAMP\.bin
 stty -F /dev/$portname $baudrate 2>/dev/null
 app/str2str -in serial://$portname:$baudrate \
-          -out file://./$folder/$filename \
-          -c cmd/SPAN-start.cmd 2>/dev/null &
+            -out file://./$folder/$filename \
+            -c cmd/SPAN-start.cmd 2>/dev/null &
 
 portname=$COM3
 baudrate=${BPS_COM3[0]}
 stty -F /dev/$portname $baudrate 2>/dev/null
 app/str2str -in ntrip://inertial:sensor22@us.inertiallabs.com:33101/roof \
-          -out serial:://$portname:$baudrate 2>/dev/null &
+            -out serial:://$portname:$baudrate 2>/dev/null &
 
 # iterate through all raspberry pi slave devices; only initiate
 # the slave script if the master switch is enabled, and one of
@@ -70,7 +77,7 @@ do
     let SECS=$(($DIFF % 60))
     let HOURS=$(($DIFF / 3600))
 
-    printf "\r%-10sTest duration: %02d:%02d:%02d" "[${COLORS[0]}]" $HOURS $MINS $SECS
+    printf "\r%-10sTest duration: %02d:%02d:%02d " "[${COLORS[0]}]" $HOURS $MINS $SECS
 
     read -s -t 0.25 -N 1 input
     if [[ $input = "q" ]] || [[ $input = "Q" ]]; then
@@ -81,6 +88,8 @@ done
 
 printf "%-10s%s\n" "[${COLORS[0]}]" "Ending test..."
 
+INS_TEXT_FILES=()
+
 for (( i=1; i<${#ENABLE[@]}; ++i ))
 do
     if [ ${BPS_COM1[$i]} -gt 0 ] || [ ${BPS_COM2[$i]} -gt 0 ] || [ ${BPS_COM3[$i]} -gt 0 ]; then
@@ -90,18 +99,20 @@ do
             data/ >/dev/null 2>/dev/null
         if [ $? -ne 0 ]
         then
-            printf "%-10s%s\n" "[${COLORS[$i]}]" "Error: failed to collect INS data"
+            printf "$red%-10s%s\n$end" "[${COLORS[$i]}]" \
+                "Error: failed to collect INS data"
         else
             printf "%-10s%s\n" "[${COLORS[$i]}]" "Converting INS data"
             app/ilconv data/${COLORS[$i]}-$TIMESTAMP/*.bin >/dev/null 2>/dev/null
             if [ $? -ne 0 ]
             then
-                printf "%-10s%s\n" "[${COLORS[$i]}]" \
+                printf "$red%-10s%s\n$end" "[${COLORS[$i]}]" \
                     "Error: failed to convert INS log file to txt"
             fi
             serialno=$(cat data/${COLORS[$i]}-$TIMESTAMP/.serial)
             mv data/${COLORS[$i]}-$TIMESTAMP data/$serialno-$TIMESTAMP
             rm data/$serialno-$TIMESTAMP/.serial
+            INS_TEXT_FILES+=("$serialno-$TIMESTAMP")
         fi
         scp -rp ${LOGIN[$i]}:$PROJECT_DIR/data/LOG-* data/ >/dev/null 2>/dev/null
         ssh ${LOGIN[$i]} -t "cd $PROJECT_DIR &&\
@@ -113,7 +124,7 @@ printf "%-10s%s\n" "[${COLORS[0]}]" "Converting SPAN data"
 app/nconv data/${COLORS[0]}-$TIMESTAMP/SPAN*.bin >/dev/null 2>/dev/null
 if [ $? -ne 0 ]
 then
-    printf "%-10s%s\n" "[${COLORS[0]}]" \
+    printf "$red%-10s%s\n$end" "[${COLORS[0]}]" \
         "Error: failed to convert SPAN log file to txt"
 fi
 
@@ -124,3 +135,19 @@ mv data/LOG data/LOG-$TIMESTAMP
 killall str2str >/dev/null
 rm .running
 printf "%-10s%s\n" "[${COLORS[0]}]" "Done."
+
+printf "%-10s%s" "[${COLORS[0]}]" "Generate report? [y/n] "
+read -s -N 1 input
+if [[ $input = "y" ]] || [[ $input = "Y" ]]; then
+    echo
+else
+    echo
+    exit
+fi
+
+printf "%-10s%s\n" "[${COLORS[0]}]" "Generating reports..."
+for fn in "${INS_TEXT_FILES[@]}"
+do
+    printf "%-10s%s\n" "[${COLORS[0]}]" "Writing to data/LOG-$TIMESTAMP/$fn/Accuracy Report.dingleberry"
+    touch "data/LOG-$TIMESTAMP/$fn/Accuracy Report.dingleberry"
+done
