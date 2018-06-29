@@ -82,7 +82,7 @@ then
         portname=$COM3
         baudrate=${BPS_COM3[0]}
         stty -F /dev/$portname $baudrate 2>/dev/null
-        app/str2str
+        app/str2str \
             -in ntrip://inertial:sensor22@us.inertiallabs.com:33101/roof \
             -out serial:://$portname:$baudrate 2>/dev/null &
     fi
