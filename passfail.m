@@ -1,9 +1,8 @@
 #!/usr/bin/octave
 format bank
-f1=dlmread('data/LOG-2018-06-28-20-19-48/F1710176-2018-06-28-20-19-48/F1710176-2018-06-28-20-19-48.txt','',8,0);
+f1=dlmread('data/The one I need/F1710176-2018-06-29-14-03-16/F1710176-2018-06-29-14-03-16.txt','',8,0);
 %f2=dlmread('data/LOG-2018-06-27-22-31-09/F1691030-2018-06-27-22-31-09/F1691030-2018-06-27-22-31-09.txt','',8,0);
-span=dlmread('data/LOG-2018-06-28-20-19-48/SPAN-2018-06-28-20-19-48/SPAN-2018-06-28-20-19-48.txt',',');
-size(span)
+span=dlmread('data/The one I need/SPAN-2018-06-29-14-03-16/SPAN-2018-06-29-14-03-16.txt',',');
 span_gps_sec=span(:,11);
 span_time=round(span_gps_sec*1000);
 span_lat=span(:,12);
@@ -32,13 +31,14 @@ t1=[f1_time,f1_heading, f1_pitch, f1_roll, f1_lat, f1_lon, f1_alt];
 %t2=[f2_time,f2_heading, f2_pitch, f2_roll, f2_lat, f2_lon, f2_alt];
 t_span=[span_time,span_heading, span_pitch, span_roll, span_lat, span_lon, span_alt];
 
-
 %array_intersect A is f1 and B is span
 [~, ind_ins, ind_span]=intersect(round(f1_time/5)*5,span_time);
 f1=t1(ind_ins,:);
 span=t_span(ind_span,:);
+%f1 and span are time intersected tables
+%Now, find the index you need to start evaluating the test from)
 
-
+span_lat=span(:,5);
 for i=1:length(span_lat)
    if span_lat(i)~=0
         break;
@@ -48,3 +48,32 @@ end
 f1=f1(i:end,:);
 span=span(i:end,:);
 clear i 
+
+%Reassigning parameters:
+f1_time=f1(:,1);
+f1_heading=f1(:,2);
+f1_pitch=f1(:,3);
+f1_roll=f1(:,4);
+f1_lat=f1(:,5);
+f1_lon=f1(:,6);
+f1_alt=f1(:,7);
+span_time=span(:,1);
+span_heading=span(:,2);
+span_pitch=span(:,3);
+span_roll=span(:,4);
+span_lat=span(:,5);
+span_lon=span(:,6);
+span_alt=span(:,7);;
+
+%Check if this is still applicable 
+f1_alt=f1_alt-33.5;
+%poserr 
+radius_earth=6371000;
+pos1=[f1_lat, f1_lon, f1_alt];
+pos2=[span_lat, span_lon, span_alt];
+delta=zeros(size(pos1));
+delta(:,1) = radius_earth.*sin(pi/180.*(pos1(:,1) -pos2(:,1)));
+delta(:,2) = radius_earth * sin(pi/180*(pos1(:,2) - pos2(:,2))).* cos(pi/180*(pos1(:,1) - pos2(:,1)));
+delta(:,3) = pos1(:,3)-pos2(:,3);
+delta(1:3,1:3)
+
