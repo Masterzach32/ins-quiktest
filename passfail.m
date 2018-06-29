@@ -75,5 +75,33 @@ delta=zeros(size(pos1));
 delta(:,1) = radius_earth.*sin(pi/180.*(pos1(:,1) -pos2(:,1)));
 delta(:,2) = radius_earth * sin(pi/180*(pos1(:,2) - pos2(:,2))).* cos(pi/180*(pos1(:,1) - pos2(:,1)));
 delta(:,3) = pos1(:,3)-pos2(:,3);
-delta(1:3,1:3)
+
+Result = table;
+Result.Time = span_time;
+Result.Minutes = (Result.Time - Result.Time(1))/60000;
+Result.INS_lat = f1_lat;
+Result.INS_lon = f1_lon;
+Result.INS_alt = f1_alt;
+Result.SPAN_lat = span_lat;
+Result.SPAN_lon = span_lon;
+Result.SPAN_alt = span_alt;
+Result.err_lat = delta(:,1);
+Result.err_lon = delta(:,2);
+Result.err_alt = delta(:,3);
+
+Result(1:3,:)
+
+%atterr 
+Att1=[f1_heading, f1_pitch, f1_roll];
+Att2=[span_heading,span_pitch, span_roll];
+delta=180/pi*asin(sin(pi/180*(Att2-Att1)));
+
+
+
+
+
+
+
+
+
 
