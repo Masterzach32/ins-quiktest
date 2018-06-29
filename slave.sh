@@ -30,6 +30,7 @@ else
         "Warning: no local config provided, using local.defaults"
 fi
 
+PROJECT_DIR=$(pwd)
 TIMESTAMP=$(cat .timestamp)
 rm .timestamp
 
