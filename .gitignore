@@ -1,4 +1,5 @@
 data
 app/*
 !app/str2str
+!app/ping.sh
 local.conf
