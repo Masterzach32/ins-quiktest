@@ -89,13 +89,12 @@ Result.err_lat = delta(:,1);
 Result.err_lon = delta(:,2);
 Result.err_alt = delta(:,3);
 
-Result(1:3,:)
-
 %atterr 
 Att1=[f1_heading, f1_pitch, f1_roll];
 Att2=[span_heading,span_pitch, span_roll];
+clear pi
 delta=180/pi*asin(sin(pi/180*(Att2-Att1)));
-
+delta (1:3,:)
 
 
 
