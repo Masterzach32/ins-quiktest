@@ -51,7 +51,8 @@ if [ ${BPS_COM1[$1]} -gt 0 ]; then
               --baud ${BPS_COM1[$1]} --rate 200 --init 7 \
               --angles 0 0 0 --lever ${LX[$1]} ${LY[$1]} ${LZ[$1]} 2>/dev/null)"
     if [ -z "$serialno" ]; then
-        printf "$red%-10s%s\n$end" "[${COLORS[$1]}]" "Error: failed to connect to INS"
+        printf "$red%-10s%s\n$end" "[${COLORS[$1]}]" "Failed to establish INS connection"
+        ssh $UNAME@${LOGIN[0]} -t "cd $PROJECT_DIR && touch .error.d/${COLORS[$1]}" 2>/dev/null
         rm -rf data/ .running
         exit
     fi
