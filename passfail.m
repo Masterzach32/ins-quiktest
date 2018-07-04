@@ -1,8 +1,8 @@
 #!/usr/bin/octave
-format bank
-f1=dlmread('data/The one I need/F1710176-2018-06-29-14-03-16/F1710176-2018-06-29-14-03-16.txt','',8,0);
+format bank 
+f1=dlmread('sample/LOG-2018-07-04-18-22-16/F1691030-2018-07-04-18-22-16/F1691030-2018-07-04-18-22-16.txt','',8,0);
 %f2=dlmread('data/LOG-2018-06-27-22-31-09/F1691030-2018-06-27-22-31-09/F1691030-2018-06-27-22-31-09.txt','',8,0);
-span=dlmread('data/The one I need/SPAN-2018-06-29-14-03-16/SPAN-2018-06-29-14-03-16.txt',',');
+span=dlmread('sample/LOG-2018-07-04-18-22-16/SPAN-2018-07-04-18-22-16/SPAN-2018-07-04-18-22-16.txt',',');
 span_gps_sec=span(:,11);
 span_time=round(span_gps_sec*1000);
 span_lat=span(:,12);
@@ -96,11 +96,5 @@ clear pi
 delta=180/pi*asin(sin(pi/180*(Att2-Att1)));
 delta (1:3,:)
 
-
-
-
-3+53+53+53+53+5
-
-1+1 
 
 

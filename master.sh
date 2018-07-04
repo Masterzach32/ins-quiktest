@@ -43,7 +43,7 @@ source local.defaults
 if [ -f local.conf ]; then
     source local.conf
 else
-    printf "$yellow%-10s%s\n$end" "[${COLORS[0]}]" \
+    printf "$yellow%-10s%s$end\n" "[${COLORS[0]}]" \
         "Warning: no local config provided, using local.defaults"
 fi
 
@@ -90,6 +90,9 @@ then
             -in ntrip://inertial:sensor22@us.inertiallabs.com:33101/roof \
             -out serial:://$portname:$baudrate 2>/dev/null &
     fi
+else
+    printf "$gray%-10s%s$end\n" "[${COLORS[0]}]" \
+        "SPAN reference data disabled"
 fi
 
 # this FOR loop iterates through all of the slave devices, which are
@@ -135,14 +138,21 @@ do
         error_flag=1
         continue
     fi
-
-    printf "%-10s%s\n" "[${COLORS[$i]}]" \
-        "Syncing repository at ${LOGIN[$i]}:$PROJECT_DIR"
-    scp global.conf local.defaults slave.sh master.sh .timestamp \
-        $UNAME@${LOGIN[$i]}:$PROJECT_DIR >/dev/null 2>/dev/null
-    printf "%-10s%s\n" "[${COLORS[$i]}]" "Starting INS data"
-    ssh $UNAME@${LOGIN[$i]} -t "cd $PROJECT_DIR && bash slave.sh $i" 2>/dev/null
-    success[$i]=1
+    ssh $UNAME@${LOGIN[$i]} "[ -f $PROJECT_DIR/.project ]"
+    if [[ $? -eq 0 ]]
+    then
+        printf "%-10s%s\n" "[${COLORS[$i]}]" \
+            "Syncing repository at ${LOGIN[$i]}:$PROJECT_DIR"
+        scp global.conf local.defaults slave.sh master.sh .timestamp \
+            $UNAME@${LOGIN[$i]}:$PROJECT_DIR >/dev/null 2>/dev/null
+        printf "%-10s%s\n" "[${COLORS[$i]}]" "Starting INS data"
+        ssh $UNAME@${LOGIN[$i]} -t "cd $PROJECT_DIR && bash slave.sh $i" 2>/dev/null
+        success[$i]=1
+    else
+        printf "$red%-10s%s$end\n" "[${COLORS[$i]}]" \
+            "Project repository not found on ${LOGIN[$i]}"
+        error_flag=1
+    fi
 done
 
 # this WHILE loop is literally just an extremely fancy exit user prompt;
@@ -233,13 +243,16 @@ do
         rm -rf data .running" >/dev/null 2>/dev/null
 done
 
-printf "%-10s%s\n" "[${COLORS[0]}]" "Converting SPAN data"
-app/nconv data/${COLORS[0]}-$TIMESTAMP/SPAN*.bin >/dev/null 2>/dev/null
-if [ $? -ne 0 ]
+if [[ ${ENABLE[0]} -gt 0 ]]
 then
-    printf "$red%-10s%s\n$end" "[${COLORS[0]}]" \
-        "Error: failed to convert SPAN log file to txt"
-    error_flag=1
+    printf "%-10s%s\n" "[${COLORS[0]}]" "Converting SPAN data"
+    app/nconv data/${COLORS[0]}-$TIMESTAMP/SPAN*.bin >/dev/null 2>/dev/null
+    if [[ $? -ne 0 ]]
+    then
+        printf "$red%-10s%s$end\n" "[${COLORS[0]}]" \
+            "Error: failed to convert SPAN log file to txt"
+        error_flag=1
+    fi
 fi
 
 mv data/${COLORS[0]}-$TIMESTAMP data/SPAN-$TIMESTAMP
@@ -255,7 +268,8 @@ then
     printf "%-10s%s" "[${COLORS[0]}]" \
         "Errors were reported. Delete entire test log? [yes/no] "
     read input
-    while [[ "$input" != "Yes" && "$input" != "yes" && "$input" != "No" && "$input" != "no" ]]
+    while [[ "$input" != "Yes" && "$input" != "yes" && \
+        "$input" != "No" && "$input" != "no" ]]
     do
         printf "%-10s%s" "[${COLORS[0]}]" "Please type 'yes' or 'no'. "
         read input
@@ -266,6 +280,15 @@ then
         rm -rf data/LOG-$TIMESTAMP
         exit
     fi
+fi
+
+if [[ ${ENABLE[0]} -eq 0 ]]
+then
+    exit
+fi
+if [[ ${BPS_COM1[0]} -eq 0 && ${BPS_COM2[0]} -eq 0 && ${BPS_COM3[0]} -eq 0 ]]
+then
+    exit
 fi
 
 printf "%-10s%s" "[${COLORS[0]}]" "Generate report? [y/n] "
@@ -280,6 +303,7 @@ fi
 printf "%-10s%s\n" "[${COLORS[0]}]" "Generating reports..."
 for fn in "${INS_TEXT_FILES[@]}"
 do
-    printf "%-10s%s\n" "[${COLORS[0]}]" "Writing to data/LOG-$TIMESTAMP/$fn/Accuracy Report.dingleberry"
+    printf "%-10s%s\n" "[${COLORS[0]}]" \
+        "Writing to data/LOG-$TIMESTAMP/$fn/Accuracy Report.dingleberry"
     touch "data/LOG-$TIMESTAMP/$fn/Accuracy Report.dingleberry"
 done

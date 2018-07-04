@@ -26,7 +26,7 @@ source local.defaults
 if [ -f local.conf ]; then
     source local.conf
 else
-    printf "$yellow%-10s%s\n$end" "[${COLORS[$1]}]" \
+    printf "$yellow%-10s%s$end\n" "[${COLORS[$1]}]" \
         "Warning: no local config provided, using local.defaults"
 fi
 
@@ -48,11 +48,13 @@ if [ ${BPS_COM1[$1]} -gt 0 ]; then
     baudrate=${BPS_COM1[$1]}
     stty -F /dev/$portname $baudrate 2>/dev/null
     serialno="$(app/ldprm /dev/$portname --name \
-              --baud ${BPS_COM1[$1]} --rate 200 --init 7 \
+              --baud ${BPS_COM1[$1]} --rate 200 --init 5 \
               --angles 0 0 0 --lever ${LX[$1]} ${LY[$1]} ${LZ[$1]} 2>/dev/null)"
     if [ -z "$serialno" ]; then
-        printf "$red%-10s%s\n$end" "[${COLORS[$1]}]" "Failed to establish INS connection"
-        ssh $UNAME@${LOGIN[0]} -t "cd $PROJECT_DIR && touch .error.d/${COLORS[$1]}" 2>/dev/null
+        printf "$red%-10s%s$end\n" "[${COLORS[$1]}]" \
+            "Failed to establish INS connection"
+        ssh $UNAME@${LOGIN[0]} -t \
+            "touch $PROJECT_DIR/.error.d/${COLORS[$1]}" 2>/dev/null
         rm -rf data/ .running
         exit
     fi
@@ -61,10 +63,10 @@ if [ ${BPS_COM1[$1]} -gt 0 ]; then
     printf "%-10s%s\n" "[${COLORS[$1]}]" \
         "Loaded parameters: IMU-antenna offset [${LX[$1]}, ${LY[$1]}, ${LZ[$1]}]"
     filename=$serialno-$TIMESTAMP\.bin
-    sleep 3
-    ./app/str2str -in serial://$portname:$baudrate \
-                  -out file://./$folder/$filename \
-                  -c cmd/INS_OPVT2AHR.cmd 2>/dev/null &
+    sleep 2
+    app/str2str -in serial://$portname:$baudrate \
+        -out file://./$folder/$filename -c cmd/INS_OPVT2AHR.cmd 2>/dev/null &
+    sleep 1
 fi
 
 if [ ${BPS_COM2[$1]} -gt 0 ]; then
@@ -82,5 +84,6 @@ if [ ${BPS_COM3[$1]} -gt 0 ]; then
     stty -F /dev/$portname $baudrate 2>/dev/null
     ./app/str2str \
         -in ntrip://inertial:sensor22@us.inertiallabs.com:33101/roof \
-        -out serial:://$portname:$baudrate 2>/dev/null &
+        -out file://./$folder/ntrip.dump \
+        -out serial://$portname:$baudrate 2>/dev/null &
 fi
