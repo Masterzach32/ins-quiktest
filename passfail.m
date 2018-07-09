@@ -1,8 +1,21 @@
-#!/usr/bin/octave
-format bank 
-f1=dlmread('sample/LOG-2018-07-04-18-22-16/F1691030-2018-07-04-18-22-16/F1691030-2018-07-04-18-22-16.txt','',8,0);
-%f2=dlmread('data/LOG-2018-06-27-22-31-09/F1691030-2018-06-27-22-31-09/F1691030-2018-06-27-22-31-09.txt','',8,0);
-span=dlmread('sample/LOG-2018-07-04-18-22-16/SPAN-2018-07-04-18-22-16/SPAN-2018-07-04-18-22-16.txt',',');
+#!/usr/bin/octave-cli
+
+format bank
+
+args = argv();
+
+INS_filename = 'sample/LOG-2018-07-04-18-22-16/F1691030-2018-07-04-18-22-16/F1691030-2018-07-04-18-22-16.txt'
+SPAN_filename = 'sample/LOG-2018-07-04-18-22-16/SPAN-2018-07-04-18-22-16/SPAN-2018-07-04-18-22-16.txt'
+
+if length(args) == 2
+    INS_filename = args(1)
+    SPAN_filename = args(2)
+else
+    printf('(GIMME TWO ARGUMENTS, YO)\n');
+end
+
+f1=dlmread(INS_filename,'',8,0);
+span=dlmread(SPAN_filename,',');
 span_gps_sec=span(:,11);
 span_time=round(span_gps_sec*1000);
 span_lat=span(:,12);

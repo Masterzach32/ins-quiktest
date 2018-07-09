@@ -305,5 +305,8 @@ for fn in "${INS_TEXT_FILES[@]}"
 do
     printf "%-10s%s\n" "[${COLORS[0]}]" \
         "Writing to data/LOG-$TIMESTAMP/$fn/Accuracy Report.dingleberry"
+    octave-cli passfail.m \
+        data/LOG-$TIMESTAMP/$fn/$fn.txt \
+        data/LOG-$TIMESTAMP/SPAN-$TIMESTAMP/SPAN-$TIMESTAMP.txt
     touch "data/LOG-$TIMESTAMP/$fn/Accuracy Report.dingleberry"
 done
