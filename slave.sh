@@ -26,7 +26,7 @@ source local.defaults
 if [ -f local.conf ]; then
     source local.conf
 else
-    printf "$yellow%-10s%s$end\n" "[${COLORS[$1]}]" \
+    printf "$yellow%-${SP}s%s$end\n" "[${COLORS[$1]}]" \
         "Warning: no local config provided, using local.defaults"
 fi
 
@@ -40,7 +40,7 @@ make all >/dev/null 2>/dev/null
 
 ################################################################################
 
-printf "%-10s%s\n" "[${COLORS[$1]}]" \
+printf "%-${SP}s%s\n" "[${COLORS[$1]}]" \
     "COM port baudrates: [${BPS_COM1[$1]}, ${BPS_COM2[$1]}, ${BPS_COM3[$1]}]"
 
 if [ ${BPS_COM1[$1]} -gt 0 ]; then
@@ -51,7 +51,7 @@ if [ ${BPS_COM1[$1]} -gt 0 ]; then
               --baud ${BPS_COM1[$1]} --rate 200 --init 5 \
               --angles 0 0 0 --lever ${LX[$1]} ${LY[$1]} ${LZ[$1]} 2>/dev/null)"
     if [ -z "$serialno" ]; then
-        printf "$red%-10s%s$end\n" "[${COLORS[$1]}]" \
+        printf "$red%-${SP}s%s$end\n" "[${COLORS[$1]}]" \
             "Failed to establish INS connection"
         ssh $UNAME@${LOGIN[0]} -t \
             "touch $PROJECT_DIR/.error.d/${COLORS[$1]}" 2>/dev/null
@@ -59,8 +59,8 @@ if [ ${BPS_COM1[$1]} -gt 0 ]; then
         exit
     fi
     echo $serialno > $folder/.serial
-    printf "%-10s%s\n" "[${COLORS[$1]}]" "Connected to device S/N $serialno"
-    printf "%-10s%s\n" "[${COLORS[$1]}]" \
+    printf "%-${SP}s%s\n" "[${COLORS[$1]}]" "Connected to device S/N $serialno"
+    printf "%-${SP}s%s\n" "[${COLORS[$1]}]" \
         "Loaded parameters: IMU-antenna offset [${LX[$1]}, ${LY[$1]}, ${LZ[$1]}]"
     filename=$serialno-$TIMESTAMP\.bin
     sleep 2

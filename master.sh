@@ -43,7 +43,7 @@ source local.defaults
 if [ -f local.conf ]; then
     source local.conf
 else
-    printf "$yellow%-10s%s$end\n" "[${COLORS[0]}]" \
+    printf "$yellow%-${SP}s%s$end\n" "[${COLORS[0]}]" \
         "Warning: no local config provided, using local.defaults"
 fi
 
@@ -66,7 +66,7 @@ echo "$TIMESTAMP" > .timestamp
 
 if [ ${ENABLE[0]} -gt 0 ]
 then
-    printf "%-10s%s %s %s %s\n" "[${COLORS[0]}]" \
+    printf "%-${SP}s%s %s %s %s\n" "[${COLORS[0]}]" \
         "Starting SPAN data w/ baudrates" \
         "[${BPS_COM1[0]}, ${BPS_COM2[0]}, ${BPS_COM3[0]}]" \
         "and lever arm" "[${LX[0]}, ${LY[0]}, ${LZ[0]}]"
@@ -91,7 +91,7 @@ then
             -out serial:://$portname:$baudrate 2>/dev/null &
     fi
 else
-    printf "$gray%-10s%s$end\n" "[${COLORS[0]}]" \
+    printf "$gray%-${SP}s%s$end\n" "[${COLORS[0]}]" \
         "SPAN reference data disabled"
 fi
 
@@ -119,21 +119,21 @@ for (( i=1; i<${#ENABLE[@]}; ++i ))
 do
     if [[ ${ENABLE[$i]} -eq 0 ]]
     then
-        printf "$gray%-10s%s$end\n" "[${COLORS[$i]}]" "Node disabled"
+        printf "$gray%-${SP}s%s$end\n" "[${COLORS[$i]}]" "Node disabled"
         continue
     fi
     if [[ (${BPS_COM1[$i]} -eq 0 && ${BPS_COM2[$i]} -eq 0 && \
            ${BPS_COM3[$i]} -eq 0) ]]
     then
-        printf "$gray%-10s%s$end\n" "[${COLORS[$i]}]" "Node disabled"
+        printf "$gray%-${SP}s%s$end\n" "[${COLORS[$i]}]" "Node disabled"
         continue
     fi
 
-    printf "%-10s%s\n" "[${COLORS[$i]}]" "Pinging LAN node at ${LOGIN[$i]}"
+    printf "%-${SP}s%s\n" "[${COLORS[$i]}]" "Pinging LAN node at ${LOGIN[$i]}"
     ping -c 1 ${LOGIN[$i]} >/dev/null 2>/dev/null
     if [[ $? -gt 0 ]]
     then
-        printf "$red%-10s%s$end\n" "[${COLORS[$i]}]" \
+        printf "$red%-${SP}s%s$end\n" "[${COLORS[$i]}]" \
             "Cannot connect to LAN node at ${LOGIN[$i]}"
         error_flag=1
         continue
@@ -141,15 +141,15 @@ do
     ssh $UNAME@${LOGIN[$i]} "[ -f $PROJECT_DIR/.project ]"
     if [[ $? -eq 0 ]]
     then
-        printf "%-10s%s\n" "[${COLORS[$i]}]" \
+        printf "%-${SP}s%s\n" "[${COLORS[$i]}]" \
             "Syncing repository at ${LOGIN[$i]}:$PROJECT_DIR"
         scp global.conf local.defaults slave.sh master.sh .timestamp \
             $UNAME@${LOGIN[$i]}:$PROJECT_DIR >/dev/null 2>/dev/null
-        printf "%-10s%s\n" "[${COLORS[$i]}]" "Starting INS data"
+        printf "%-${SP}s%s\n" "[${COLORS[$i]}]" "Starting INS data"
         ssh $UNAME@${LOGIN[$i]} -t "cd $PROJECT_DIR && bash slave.sh $i" 2>/dev/null
         success[$i]=1
     else
-        printf "$red%-10s%s$end\n" "[${COLORS[$i]}]" \
+        printf "$red%-${SP}s%s$end\n" "[${COLORS[$i]}]" \
             "Project repository not found on ${LOGIN[$i]}"
         error_flag=1
     fi
@@ -159,7 +159,7 @@ done
 # it waits for the user to press Q to stop the test, and prints the
 # test duration until that happens.
 BEGIN=$(date +%s)
-printf "%-10s%s\n" "[${COLORS[0]}]" "Press [Q] to exit."
+printf "%-${SP}s%s\n" "[${COLORS[0]}]" "Press [Q] to exit."
 while true
 do
     NOW=$(date +%s)
@@ -167,7 +167,7 @@ do
     let MINS=$(($DIFF / 60))
     let SECS=$(($DIFF % 60))
     let HOURS=$(($DIFF / 3600))
-    printf "\r%-10sTest duration: %02d:%02d:%02d " "[${COLORS[0]}]" $HOURS $MINS $SECS
+    printf "\r%-${SP}sTest duration: %02d:%02d:%02d " "[${COLORS[0]}]" $HOURS $MINS $SECS
     
     # [-s] disables local echo
     # [-t 0.25] sets 0.25 second timeout
@@ -180,7 +180,7 @@ do
     fi
 done
 
-printf "%-10s%s\n" "[${COLORS[0]}]" "Ending test..."
+printf "%-${SP}s%s\n" "[${COLORS[0]}]" "Ending test..."
 
 INS_TEXT_FILES=()
 
@@ -210,26 +210,26 @@ do
         continue
     fi
 
-    printf "%-10s%s\n" "[${COLORS[$i]}]" "Grabbing INS data"
+    printf "%-${SP}s%s\n" "[${COLORS[$i]}]" "Grabbing INS data"
     ssh $UNAME@${LOGIN[$i]} -t "killall str2str" >/dev/null 2>/dev/null
     scp -rp $UNAME@${LOGIN[$i]}:$PROJECT_DIR/data/${COLORS[$i]}-$TIMESTAMP \
         data/ >/dev/null 2>/dev/null
     if [ $? -ne 0 ]
     then
-        printf "$red%-10s%s\n$end" "[${COLORS[$i]}]" \
+        printf "$red%-${SP}s%s\n$end" "[${COLORS[$i]}]" \
             "Failed to collect INS data"
         error_flag=1
     else
         PVX=$(echo "${LX[$i]} - ${LX[0]}" | bc)
         PVY=$(echo "${LY[$i]} - ${LY[0]}" | bc)
         PVZ=$(echo "${LZ[$i]} - ${LZ[0]}" | bc)
-        printf "%-10s%s\n" "[${COLORS[$i]}]" \
+        printf "%-${SP}s%s\n" "[${COLORS[$i]}]" \
             "Converting INS data w/ PV offset [$PVX, $PVY, $PVZ]"
         app/ilconv data/${COLORS[$i]}-$TIMESTAMP/*.bin \
             --pvoff $PVX $PVY $PVZ >/dev/null 2>/dev/null
         if [ $? -ne 0 ]
         then
-            printf "$red%-10s%s\n$end" "[${COLORS[$i]}]" \
+            printf "$red%-${SP}s%s\n$end" "[${COLORS[$i]}]" \
                 "Error: failed to convert INS log file to txt"
             error_flag=1
         fi
@@ -245,11 +245,11 @@ done
 
 if [[ ${ENABLE[0]} -gt 0 ]]
 then
-    printf "%-10s%s\n" "[${COLORS[0]}]" "Converting SPAN data"
+    printf "%-${SP}s%s\n" "[${COLORS[0]}]" "Converting SPAN data"
     app/nconv data/${COLORS[0]}-$TIMESTAMP/SPAN*.bin >/dev/null 2>/dev/null
     if [[ $? -ne 0 ]]
     then
-        printf "$red%-10s%s$end\n" "[${COLORS[0]}]" \
+        printf "$red%-${SP}s%s$end\n" "[${COLORS[0]}]" \
             "Error: failed to convert SPAN log file to txt"
         error_flag=1
     fi
@@ -261,22 +261,22 @@ mv data/*-$TIMESTAMP data/LOG
 mv data/LOG data/LOG-$TIMESTAMP
 killall str2str >/dev/null 2>/dev/null
 rm -rf .running .timestamp .error.d
-printf "%-10s%s\n" "[${COLORS[0]}]" "Done."
+printf "%-${SP}s%s\n" "[${COLORS[0]}]" "Done."
 
 if [[ error_flag -gt 0 ]]
 then
-    printf "%-10s%s" "[${COLORS[0]}]" \
+    printf "%-${SP}s%s" "[${COLORS[0]}]" \
         "Errors were reported. Delete entire test log? [yes/no] "
     read input
     while [[ "$input" != "Yes" && "$input" != "yes" && \
         "$input" != "No" && "$input" != "no" ]]
     do
-        printf "%-10s%s" "[${COLORS[0]}]" "Please type 'yes' or 'no'. "
+        printf "%-${SP}s%s" "[${COLORS[0]}]" "Please type 'yes' or 'no'. "
         read input
     done
     if [[ "$input" == "Yes" || "$input" == "yes" ]]
     then
-        printf "%-10s%s\n" "[${COLORS[0]}]" "Deleting data/LOG-$TIMESTAMP"
+        printf "%-${SP}s%s\n" "[${COLORS[0]}]" "Deleting data/LOG-$TIMESTAMP"
         rm -rf data/LOG-$TIMESTAMP
         exit
     fi
@@ -291,7 +291,7 @@ then
     exit
 fi
 
-printf "%-10s%s" "[${COLORS[0]}]" "Generate report? [y/n] "
+printf "%-${SP}s%s" "[${COLORS[0]}]" "Generate report? [y/n] "
 read -N 1 input
 if [[ $input = "y" ]] || [[ $input = "Y" ]]; then
     echo
@@ -300,10 +300,10 @@ else
     exit
 fi
 
-printf "%-10s%s\n" "[${COLORS[0]}]" "Generating reports..."
+printf "%-${SP}s%s\n" "[${COLORS[0]}]" "Generating reports..."
 for fn in "${INS_TEXT_FILES[@]}"
 do
-    printf "%-10s%s\n" "[${COLORS[0]}]" \
+    printf "%-${SP}s%s\n" "[${COLORS[0]}]" \
         "Writing to data/LOG-$TIMESTAMP/$fn/Accuracy Report.dingleberry"
     octave-cli passfail.m \
         data/LOG-$TIMESTAMP/$fn/$fn.txt \
