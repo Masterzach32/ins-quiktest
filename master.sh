@@ -6,7 +6,7 @@ yellow=$'\e[33m'
 gray=$'\e[90m'
 end=$'\e[0m' # clears formatting
 
-error_flag=0; # error flag, 0 if 100% success, 1 if otherwise
+error_flag=0; # counts the number of errors thrown 
 
 # the following blocks check for the existence of .project and .timestamp;
 # the .project file is found in the project directory */ins-quiktest/, and
@@ -64,6 +64,10 @@ echo "$TIMESTAMP" > .timestamp
 # BPS_COM2[0], and BPS_COM3[0]. if any baudrate is 0, the program
 # considers this as a disable of that port.
 
+# boolean array encodes whether data should be grabbed in
+# second node-wise for loop
+success=(0 0 0 0 0 0);
+
 if [ ${ENABLE[0]} -gt 0 ]
 then
     printf "%-${SP}s%s %s %s %s\n" "[${COLORS[0]}]" \
@@ -71,24 +75,42 @@ then
         "[${BPS_COM1[0]}, ${BPS_COM2[0]}, ${BPS_COM3[0]}]" \
         "and lever arm" "[${LX[0]}, ${LY[0]}, ${LZ[0]}]"
 
+    success[0]=1
+
     if [ ${BPS_COM2[0]} -gt 0 ]
     then
         portname=$COM2
         baudrate=${BPS_COM2[0]}
         filename=SPAN-$TIMESTAMP\.bin
-        stty -F /dev/$portname $baudrate 2>/dev/null
-        app/str2str -in serial://$portname:$baudrate \
-                    -out file://./$folder/$filename \
-                    -c cmd/SPAN-start.cmd 2>/dev/null &
+        if [[ ! -e /dev/$portname ]]
+        then
+            ((error_flag++))
+            success[0]=0
+            printf "$red%-${SP}s%s$end\n" "[${COLORS[0]}]" \
+                "/dev/$portname does not exist or is inaccessible"
+        else
+            stty -F /dev/$portname $baudrate 2>/dev/null
+            app/str2str -in serial://$portname:$baudrate \
+                -out file://./$folder/$filename \
+                -c cmd/SPAN-start.cmd 2>/dev/null &
+        fi
     fi
     if [ ${BPS_COM3[0]} -gt 0 ]
     then
         portname=$COM3
         baudrate=${BPS_COM3[0]}
-        stty -F /dev/$portname $baudrate 2>/dev/null
-        app/str2str \
-            -in ntrip://inertial:sensor22@us.inertiallabs.com:33101/roof \
-            -out serial:://$portname:$baudrate 2>/dev/null &
+        if [[ ! -e /dev/$portname ]]
+        then
+            ((error_flag++))
+            success[0]=0
+            printf "$red%-${SP}s%s$end\n" "[${COLORS[0]}]" \
+                "/dev/$portname does not exist or is inaccessible"
+        else
+            stty -F /dev/$portname $baudrate 2>/dev/null
+            app/str2str \
+                -in ntrip://inertial:sensor22@us.inertiallabs.com:33101/roof \
+                -out serial:://$portname:$baudrate 2>/dev/null &
+        fi
     fi
 else
     printf "$gray%-${SP}s%s$end\n" "[${COLORS[0]}]" \
@@ -111,10 +133,6 @@ fi
 # repository to each of the slave devices, and then initiates the
 # slave script.
 
-# boolean array encodes whether data should be grabbed in
-# second node-wise for loop
-success=(0 0 0 0 0 0);
-
 for (( i=1; i<${#ENABLE[@]}; ++i ))
 do
     if [[ ${ENABLE[$i]} -eq 0 ]]
@@ -134,68 +152,92 @@ do
     if [[ $? -gt 0 ]]
     then
         printf "$red%-${SP}s%s$end\n" "[${COLORS[$i]}]" \
-            "Cannot connect to LAN node at ${LOGIN[$i]}"
-        error_flag=1
+            "Network error: cannot connect to LAN node at ${LOGIN[$i]}"
+        ((error_flag++))
         continue
     fi
+
     ssh $UNAME@${LOGIN[$i]} "[ -f $PROJECT_DIR/.project ]"
-    if [[ $? -eq 0 ]]
+    if [[ ! $? -eq 0 ]]
     then
-        printf "%-${SP}s%s\n" "[${COLORS[$i]}]" \
-            "Syncing repository at ${LOGIN[$i]}:$PROJECT_DIR"
-        scp global.conf local.defaults slave.sh master.sh .timestamp \
-            $UNAME@${LOGIN[$i]}:$PROJECT_DIR >/dev/null 2>/dev/null
-        printf "%-${SP}s%s\n" "[${COLORS[$i]}]" "Starting INS data"
-        ssh $UNAME@${LOGIN[$i]} -t "cd $PROJECT_DIR && bash slave.sh $i" 2>/dev/null
-        success[$i]=1
-    else
         printf "$red%-${SP}s%s$end\n" "[${COLORS[$i]}]" \
             "Project repository not found on ${LOGIN[$i]}"
-        error_flag=1
+        ((error_flag++))
     fi
+
+    printf "%-${SP}s%s\n" "[${COLORS[$i]}]" \
+        "Syncing repository at ${LOGIN[$i]}:$PROJECT_DIR"
+    scp global.conf local.defaults slave.sh master.sh .timestamp \
+        $UNAME@${LOGIN[$i]}:$PROJECT_DIR >/dev/null 2>/dev/null
+    printf "%-${SP}s%s\n" "[${COLORS[$i]}]" "Starting INS data"
+    ssh $UNAME@${LOGIN[$i]} -t "cd $PROJECT_DIR; bash slave.sh $i" 2>/dev/null
+
+    x=$?
+    if [[ $x -gt 0 ]]
+    then
+        printf "%-${SP}s%s\n" "[${COLORS[$i]}]" \
+            "$x error(s) were detected during setup"
+        ((error_flag+=x));
+        continue
+    fi
+
+    success[$i]=1
 done
 
-# this WHILE loop is literally just an extremely fancy exit user prompt;
-# it waits for the user to press Q to stop the test, and prints the
-# test duration until that happens.
-BEGIN=$(date +%s)
-printf "%-${SP}s%s\n" "[${COLORS[0]}]" "Press [Q] to exit."
-while true
-do
-    NOW=$(date +%s)
-    let DIFF=$(($NOW - $BEGIN))
-    let MINS=$(($DIFF / 60))
-    let SECS=$(($DIFF % 60))
-    let HOURS=$(($DIFF / 3600))
-    printf "\r%-${SP}sTest duration: %02d:%02d:%02d " "[${COLORS[0]}]" $HOURS $MINS $SECS
-    
-    # [-s] disables local echo
-    # [-t 0.25] sets 0.25 second timeout
-    # [-N 1] triggers exit after only one character
-    read -s -t 0.25 -N 1 input
-    
-    if [[ $input = "q" ]] || [[ $input = "Q" ]]; then
-        echo
-        break
-    fi
-done
+if [[ $error_flag -eq 0 ]]
+then
+
+    # this WHILE loop is literally just an extremely fancy exit user prompt;
+    # it waits for the user to press Q to stop the test, and prints the
+    # test duration until that happens.
+    BEGIN=$(date +%s)
+    printf "%-${SP}s%s\n" "[${COLORS[0]}]" "Press [Q] to exit."
+    while true
+    do
+        NOW=$(date +%s)
+        let DIFF=$(($NOW - $BEGIN))
+        let MINS=$(($DIFF / 60))
+        let SECS=$(($DIFF % 60))
+        let HOURS=$(($DIFF / 3600))
+        printf "\r%-${SP}sTest duration: %02d:%02d:%02d " "[${COLORS[0]}]" $HOURS $MINS $SECS
+
+        # [-s] disables local echo
+        # [-t 0.25] sets 0.25 second timeout
+        # [-N 1] triggers exit after only one character
+        read -s -t 0.25 -N 1 input
+
+        if [[ $input = "q" ]] || [[ $input = "Q" ]]; then
+            echo
+            break
+        fi
+    done
+else
+    printf "%-${SP}s%s\n" "[${COLORS[0]}]" \
+        "$error_flag error(s) were detected during setup"
+fi
 
 printf "%-${SP}s%s\n" "[${COLORS[0]}]" "Ending test..."
 
-INS_TEXT_FILES=()
+INS_TEXT_FILES=() # array of successfully converted INS text files
 
 # this block has the incredibly complicated job of stopping all
 # the slave devices, grabbing their data, offsetting it to the SPAN
 # reference position, and renaming/reorganizing
 for (( i=1; i<${#ENABLE[@]}; ++i ))
 do
-    # double check node success
+    # if a node's name appears in .error.d/, it means the slave
+    # device has thrown an error and data collection/cleanup is
+    # unnecessary.
     if [[ -f ".error.d/${COLORS[$i]}" ]]
     then
-        success[$i]=0
-        error_flag=1
-        continue
+        success[$i]=0 # set the success bit for this slave to false
+        ((error_flag++)) # raise the error flag
+        continue # skip all steps for this unit
     fi
+
+    # if the slave is disabled, either via the master enable switch
+    # or with its COM port baudrates, the unit will be skipped.
+    # the same is true for when its success bit is set to 0.
     if [[ ${ENABLE[$i]} -eq 0 ]]
     then
         continue
@@ -210,16 +252,28 @@ do
         continue
     fi
 
+    # it is determined that the device collected data successfully, so the
+    # master will now pull the INS data from the slave
+
     printf "%-${SP}s%s\n" "[${COLORS[$i]}]" "Grabbing INS data"
+
+    # kill str2str and secure copy data from data folder
     ssh $UNAME@${LOGIN[$i]} -t "killall str2str" >/dev/null 2>/dev/null
     scp -rp $UNAME@${LOGIN[$i]}:$PROJECT_DIR/data/${COLORS[$i]}-$TIMESTAMP \
         data/ >/dev/null 2>/dev/null
     if [ $? -ne 0 ]
     then
+        # throw an error if secure copy fails
         printf "$red%-${SP}s%s\n$end" "[${COLORS[$i]}]" \
             "Failed to collect INS data"
-        error_flag=1
+        ((error_flag++))
     else
+
+        # iff data is collected successfully, the INS log needs to be
+        # converted to text and offset to the SPAN position (this is
+        # done with app/ilconv, the source for which is found in
+        # src/ilconv.cpp)
+
         PVX=$(echo "${LX[$i]} - ${LX[0]}" | bc)
         PVY=$(echo "${LY[$i]} - ${LY[0]}" | bc)
         PVZ=$(echo "${LZ[$i]} - ${LZ[0]}" | bc)
@@ -229,44 +283,61 @@ do
             --pvoff $PVX $PVY $PVZ >/dev/null 2>/dev/null
         if [ $? -ne 0 ]
         then
+            # throw an error if conversion fails
             printf "$red%-${SP}s%s\n$end" "[${COLORS[$i]}]" \
                 "Error: failed to convert INS log file to txt"
-            error_flag=1
+            ((error_flag++))
         fi
+
+        # move data around, rename folders, add to array of files
         serialno=$(cat data/${COLORS[$i]}-$TIMESTAMP/.serial)
         mv data/${COLORS[$i]}-$TIMESTAMP data/$serialno-$TIMESTAMP
         # rm data/$serialno-$TIMESTAMP/.serial
         INS_TEXT_FILES+=("$serialno-$TIMESTAMP")
     fi
+    # copy all other LOG folders from slave, and clean up dotfiles
     scp -rp $UNAME@${LOGIN[$i]}:$PROJECT_DIR/data/LOG-* data/ >/dev/null 2>/dev/null
     ssh $UNAME@${LOGIN[$i]} -t "cd $PROJECT_DIR &&\
         rm -rf data .running" >/dev/null 2>/dev/null
 done
 
-if [[ ${ENABLE[0]} -gt 0 ]]
+# if the SPAN is enabled, convert the data to INSPVAA log
+if [[ ${ENABLE[0]} -gt 0 && ${success[0]} -gt 0 ]]
 then
     printf "%-${SP}s%s\n" "[${COLORS[0]}]" "Converting SPAN data"
     app/nconv data/${COLORS[0]}-$TIMESTAMP/SPAN*.bin >/dev/null 2>/dev/null
     if [[ $? -ne 0 ]]
     then
+        # throw an error if conversion fails
         printf "$red%-${SP}s%s$end\n" "[${COLORS[0]}]" \
             "Error: failed to convert SPAN log file to txt"
-        error_flag=1
+        ((error_flag++))
     fi
+
+    # restructure LOG folder
+    mv data/${COLORS[0]}-$TIMESTAMP data/SPAN-$TIMESTAMP
+    mkdir data/LOG
+    mv data/*-$TIMESTAMP data/LOG
+    mv data/LOG data/LOG-$TIMESTAMP
+else
+    rm -rf data/${COLORS[0]}-$TIMESTAMP 2>/dev/null
 fi
 
-mv data/${COLORS[0]}-$TIMESTAMP data/SPAN-$TIMESTAMP
-mkdir data/LOG
-mv data/*-$TIMESTAMP data/LOG
-mv data/LOG data/LOG-$TIMESTAMP
+# kill str2str, remove dotfiles
 killall str2str >/dev/null 2>/dev/null
 rm -rf .running .timestamp .error.d
 printf "%-${SP}s%s\n" "[${COLORS[0]}]" "Done."
 
+# if the error flag is ever raised (it cannot be lowered, so
+# error_flag > 0 indicates at least one error was thrown), the user
+# is given the option to delete the entire test log.
+#
+# the user MUST enter exactly 'Yes' or 'yes' to delete the data,
+# and must enter exactly 'No' or 'no' to dismiss the dialogue.
 if [[ error_flag -gt 0 ]]
 then
     printf "%-${SP}s%s" "[${COLORS[0]}]" \
-        "Errors were reported. Delete entire test log? [yes/no] "
+        "$error_flag error(s) were reported. Delete entire test log? [yes/no] "
     read input
     while [[ "$input" != "Yes" && "$input" != "yes" && \
         "$input" != "No" && "$input" != "no" ]]
@@ -282,7 +353,9 @@ then
     fi
 fi
 
-if [[ ${ENABLE[0]} -eq 0 ]]
+# at this point the only thing left to do is to generate a report, so if
+# the SPAN data was disabled, the script can exit
+if [[ ${ENABLE[0]} -eq 0 || ${success[0]} -eq 0 ]]
 then
     exit
 fi
@@ -291,6 +364,8 @@ then
     exit
 fi
 
+# user promt to generate reports for INS accuracy; user can enter
+# 'Y' or 'y' to afirm, or any key to dismiss
 printf "%-${SP}s%s" "[${COLORS[0]}]" "Generate report? [y/n] "
 read -N 1 input
 if [[ $input = "y" ]] || [[ $input = "Y" ]]; then
@@ -300,6 +375,8 @@ else
     exit
 fi
 
+# for every INS text file added during second node loop,
+# run passfail.m with the test file and INSPVAA log as arguments
 printf "%-${SP}s%s\n" "[${COLORS[0]}]" "Generating reports..."
 for fn in "${INS_TEXT_FILES[@]}"
 do
