@@ -4,12 +4,12 @@
 #include <string.h>
 #include <fcntl.h>
 
-char string[11] = {0};
+char numstr[11] = {0};
 
 char* num2str(unsigned long num)
 {
-    sprintf(string, "%lu", num);
-    return string;
+    sprintf(numstr, "%lu", num);
+    return numstr;
 }
 
 char* port_str(unsigned long port_id)
@@ -218,7 +218,8 @@ int payload2inspva(struct inspva *frame, unsigned char *payload)
 {
     if (!frame || !payload) return 1;
 
-    if ((payload[0] != 0xAA) || (payload[1] != 0x44) || (payload[2] != 0x12) ||
+    if ((payload[0] != 0xAA) || (payload[1] != 0x44) ||
+        (payload[2] != 0x12) ||
         (payload[4] != 0xFB) || (payload[5] != 0x01))
     {
         // this isn't the start of a SPAN INSPVA packet
@@ -319,7 +320,8 @@ int payload2rtkpos(struct rtkpos *frame, unsigned char *payload)
 {
     if (!frame || !payload) return 1;
 
-    if ((payload[0] != 0xAA) || (payload[1] != 0x44) || (payload[2] != 0x12) ||
+    if ((payload[0] != 0xAA) || (payload[1] != 0x44) ||
+        (payload[2] != 0x12) ||
         (payload[4] != 0x8D) || (payload[5] != 0x00))
     {
         // this isn't the start of an RTKPOS packet
@@ -474,53 +476,88 @@ int main(int argc, char** argv)
     fread(file_buffer, 1, filelen, infile);
     fclose(infile);
 
-    char *outfn = (char*) malloc(strlen(argv[1]) + 1);
-    if (!outfn)
+    // allocate and name INSPVA text file
+    char *inspva_fn = (char*) malloc(strlen(argv[1]) + 1);
+    if (!inspva_fn)
     {
         fprintf(stderr, "%s: memory allocation error\n", argv[0]);
         return 1;
     }
-    strcpy(outfn, argv[1]);
-    char *ext_ptr = strstr(outfn, ".bin");
-    if (!ext_ptr) // file does not contain ".bin", so tack ".txt" on the end
+    strcpy(inspva_fn, argv[1]);
+    char *ext_ptr = strstr(inspva_fn, ".bin");
+    if (!ext_ptr) // tack ".ins" on the end
     {
-        free(outfn);
-        outfn = (char*) malloc(strlen(argv[1]) + 5);
-        if (!outfn)
+        free(inspva_fn);
+        inspva_fn = (char*) malloc(strlen(argv[1]) + 5);
+        if (!inspva_fn)
         {
             fprintf(stderr, "%s: memory allocation error\n", argv[0]);
             return 1;
         }
-        strcpy(outfn, argv[1]);
-        strcpy(outfn + strlen(outfn), ".txt");
+        strcpy(inspva_fn, argv[1]);
+        strcpy(inspva_fn + strlen(inspva_fn), ".ins");
     }
-    else // replace ".bin" with ".txt"
+    else // replace ".bin" with ".ins"
     {
-        strcpy(ext_ptr, ".txt");
+        strcpy(ext_ptr, ".ins");
     }
 
-    FILE *outfile = fopen(outfn, "wb");
-    if (!outfile)
+    FILE *inspva_outfile = fopen(inspva_fn, "wb");
+    if (!inspva_outfile)
     {
-        fprintf(stderr, "%s: failed to open '%s'\n", argv[0], outfn);
+        fprintf(stderr, "%s: failed to open '%s'\n",
+            argv[0], inspva_fn);
         return 1;
     }
 
-    unsigned long long rptr = 0;
+    // allocate and name RTKPOS text file
+    char *rtkpos_fn = (char*) malloc(strlen(argv[1]) + 1);
+    if (!rtkpos_fn)
+    {
+        fprintf(stderr, "%s: memory allocation error\n", argv[0]);
+        return 1;
+    }
+    strcpy(rtkpos_fn, argv[1]);
+    ext_ptr = strstr(rtkpos_fn, ".bin");
+    if (!ext_ptr) // tack ".rtk" on the end
+    {
+        free(rtkpos_fn);
+        rtkpos_fn = (char*) malloc(strlen(argv[1]) + 5);
+        if (!rtkpos_fn)
+        {
+            fprintf(stderr, "%s: memory allocation error\n", argv[0]);
+            return 1;
+        }
+        strcpy(rtkpos_fn, argv[1]);
+        strcpy(rtkpos_fn + strlen(rtkpos_fn), ".rtk");
+    }
+    else // replace ".bin" with ".rtk"
+    {
+        strcpy(ext_ptr, ".rtk");
+    }
+
+    FILE *rtkpos_outfile = fopen(rtkpos_fn, "wb");
+    if (!rtkpos_outfile)
+    {
+        fprintf(stderr, "%s: failed to open '%s'\n",
+            argv[0], rtkpos_fn);
+        return 1;
+    }
 
     // find first aa 44 12 sequence
-    for (int i = 0; rptr == 0 && i < filelen - 5; ++i)
+    unsigned long long rptr = 0;
+    for (int i = 0; rptr == 0 && i < filelen - 4; ++i)
     {
         if ((file_buffer[i]) == 0xAA && (file_buffer[i+1]) == 0x44 &&
-            (file_buffer[i+2] == 0x12) && (file_buffer[i+4] == 0xFB))
+            (file_buffer[i+2] == 0x12))
         {
             rptr = i;
         }
     }
     if (rptr == 0)
     {
-        fprintf(stderr, "%s: '%s' does not contain any INSPVA packets\n",
-            argv[0], argv[1]);
+        fprintf(stderr, "%s: '%s' does not contain any "
+            "NovAtel OEM6 packets\n", argv[0], argv[1]);
         return 1;
     }
 
@@ -531,24 +568,25 @@ int main(int argc, char** argv)
         struct rtkpos RTKPOS;
         if (payload2inspva(&INSPVA, file_buffer + rptr) == 0)
         {
-            println_inspva(outfile, &INSPVA);
+            println_inspva(inspva_outfile, &INSPVA);
             rptr += 120;
         }
         else if (payload2rtkpos(&RTKPOS, file_buffer + rptr) == 0)
         {
-            println_rtkpos(outfile, &RTKPOS);
-            rptr++; // gotta figure out the length of rtkposb
+            println_rtkpos(rtkpos_outfile, &RTKPOS);
+            rptr += 104;
         }
         else ++rptr;
         progress = 100*rptr/filelen;
         if (progress != old_progress)
         {
             old_progress = progress;
-            fprintf(stderr, "\r%s: Writing to %s: %2hhu%%",
-                argv[0], outfn, progress);
+            fprintf(stderr, "\r%s: Writing... %2hhu%%",
+                argv[0], progress);
         }
     }
-    fprintf(stderr, "\r%s: Writing to %s: Done.\n", argv[0], outfn);
-    fclose(outfile);
+    fprintf(stderr, "\r%s: Writing... Done.\n", argv[0]);
+    fclose(inspva_outfile);
+    fclose(rtkpos_outfile);
     return 0;
 }
