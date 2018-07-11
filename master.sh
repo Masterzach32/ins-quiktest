@@ -6,7 +6,7 @@ yellow=$'\e[33m'
 gray=$'\e[90m'
 end=$'\e[0m' # clears formatting
 
-error_flag=0; # counts the number of errors thrown 
+error_flag=0 # counts the number of errors thrown
 
 # the following blocks check for the existence of .project and .timestamp;
 # the .project file is found in the project directory */ins-quiktest/, and
@@ -122,7 +122,8 @@ then
             stty -F /dev/$portname $baudrate 2>/dev/null
             app/str2str \
                 -in ntrip://inertial:sensor22@us.inertiallabs.com:33101/roof \
-                -out serial:://$portname:$baudrate 2>/dev/null &
+                -out serial:://$portname:$baudrate 2>/dev/null \
+                -out file:://./$folder/RTCM3.bin 2>/dev/null &
         fi
     fi
 else
@@ -386,11 +387,30 @@ then
     printf "%-${SP}s%s" "[${COLORS[0]}]" \
         "$error_flag error(s) were reported. Delete entire test log? [yes/no] "
     read input
+    message_count=0;
     while [[ "$input" != "Yes" && "$input" != "yes" && \
         "$input" != "No" && "$input" != "no" ]]
     do
-        printf "%-${SP}s%s" "[${COLORS[0]}]" "Please type 'yes' or 'no'. "
+        messages=(  "Please type 'yes' or 'no'. "
+                    "PLEASE type 'yes' or 'no'. "
+                    "PLEASE DO IT. "
+                    "Please? Just type yes or no. "
+                    "omgplz. "
+                    "I hate you. "
+                    "... "
+                    "... "
+                    "Do you feel good about yourself? "
+                    "You should be working right now. "
+                    "... "
+                    "Moo. ")
+        if [[ $message_count -eq ${#messages[@]} ]]
+        then
+            input="Moo."
+            break
+        fi
+        printf "%-${SP}s%s" "[${COLORS[0]}]" "${messages[$message_count]}"
         read input
+        ((message_count++))
     done
     if [[ "$input" == "Yes" || "$input" == "yes" ]]
     then

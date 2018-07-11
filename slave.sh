@@ -145,7 +145,7 @@ if [ ${BPS_COM3[$1]} -gt 0 ]; then
     stty -F /dev/$portname $baudrate 2>/dev/null
     ./app/str2str \
         -in ntrip://inertial:sensor22@us.inertiallabs.com:33101/roof \
-        -out file://./$folder/NTRIP-dump.bin \
+        -out file://./$folder/RTCM3.bin \
         -out serial://$portname:$baudrate 2>/dev/null &
 fi
 
