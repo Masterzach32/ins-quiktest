@@ -60,6 +60,8 @@ make all >/dev/null 2>/dev/null
 printf "%-${SP}s%s\n" "[${COLORS[$1]}]" \
     "COM port baudrates: [${BPS_COM1[$1]}, ${BPS_COM2[$1]}, ${BPS_COM3[$1]}]"
 
+serialno="INS"
+
 # INS parameters are read and written over COM1
 if [ ${BPS_COM1[$1]} -gt 0 ]
 then
@@ -143,6 +145,8 @@ if [ ${BPS_COM3[$1]} -gt 0 ]; then
     stty -F /dev/$portname $baudrate 2>/dev/null
     ./app/str2str \
         -in ntrip://inertial:sensor22@us.inertiallabs.com:33101/roof \
-        -out file://./$folder/ntrip.dump \
+        -out file://./$folder/NTRIP-dump.bin \
         -out serial://$portname:$baudrate 2>/dev/null &
 fi
+
+sleep 2

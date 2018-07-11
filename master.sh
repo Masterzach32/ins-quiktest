@@ -58,6 +58,17 @@ mkdir -p $folder >/dev/null 2>/dev/null
 make all >/dev/null 2>/dev/null
 echo "$TIMESTAMP" > .timestamp
 
+# disable the master enable switch if all of the COM ports
+# for a particular device are disabled
+for (( i=0; i<${#ENABLE[@]}; ++i ))
+do
+    if [[ (${BPS_COM1[$i]} -eq 0 && ${BPS_COM2[$i]} -eq 0 && \
+           ${BPS_COM3[$i]} -eq 0) ]]
+    then
+        ENABLE[0]=0;
+    fi
+done
+
 # if the SPAN is enabled (if ENABLE[0] is greater than 1 in global.conf),
 # the master device will begin to take data from the SPAN as described
 # in this IF block. the baudrates are described in BPS_COM1[0],
@@ -68,12 +79,14 @@ echo "$TIMESTAMP" > .timestamp
 # second node-wise for loop
 success=(0 0 0 0 0 0);
 
-if [ ${ENABLE[0]} -gt 0 ]
+if [[ ${ENABLE[0]} -gt 0 ]]
 then
     printf "%-${SP}s%s %s %s %s\n" "[${COLORS[0]}]" \
         "Starting SPAN data w/ baudrates" \
-        "[${BPS_COM1[0]}, ${BPS_COM2[0]}, ${BPS_COM3[0]}]" \
-        "and lever arm" "[${LX[0]}, ${LY[0]}, ${LZ[0]}]"
+        "[${BPS_COM1[0]}, ${BPS_COM2[0]}, ${BPS_COM3[0]}]"
+    printf "%-${SP}s%s %s\n" "[${COLORS[0]}]" \
+        "Verify antenna offset in cmd/SPAN-start.cmd:" \
+        "[${LX[0]}, ${LY[0]}, ${LZ[0]}]"
 
     success[0]=1
 
@@ -140,12 +153,6 @@ do
         printf "$gray%-${SP}s%s$end\n" "[${COLORS[$i]}]" "Node disabled"
         continue
     fi
-    if [[ (${BPS_COM1[$i]} -eq 0 && ${BPS_COM2[$i]} -eq 0 && \
-           ${BPS_COM3[$i]} -eq 0) ]]
-    then
-        printf "$gray%-${SP}s%s$end\n" "[${COLORS[$i]}]" "Node disabled"
-        continue
-    fi
 
     printf "%-${SP}s%s\n" "[${COLORS[$i]}]" "Pinging LAN node at ${LOGIN[$i]}"
     ping -c 1 ${LOGIN[$i]} >/dev/null 2>/dev/null
@@ -191,7 +198,8 @@ then
     # it waits for the user to press Q to stop the test, and prints the
     # test duration until that happens.
     BEGIN=$(date +%s)
-    printf "%-${SP}s%s\n" "[${COLORS[0]}]" "Press [Q] to exit."
+    warn_flag=1
+
     while true
     do
         NOW=$(date +%s)
@@ -199,7 +207,8 @@ then
         let MINS=$(($DIFF / 60))
         let SECS=$(($DIFF % 60))
         let HOURS=$(($DIFF / 3600))
-        printf "\r%-${SP}sTest duration: %02d:%02d:%02d " "[${COLORS[0]}]" $HOURS $MINS $SECS
+        printf "\r%-${SP}sPress [Q] to exit. Test duration: %02d:%02d:%02d " \
+            "[${COLORS[0]}]" $HOURS $MINS $SECS
 
         # [-s] disables local echo
         # [-t 0.25] sets 0.25 second timeout
@@ -210,6 +219,45 @@ then
             echo
             break
         fi
+
+        if [[ $warn_flag -eq 0 || $DIFF -lt 5 ]]; then continue; fi
+
+        if [[ ${ENABLE[0]} -gt 0 ]]
+        then
+            nf=$(find $folder/ -not -type d| wc -l)
+            ef=$(find $folder/ -empty -not -type d| wc -l)
+            if [[ $nf -eq 0 ]]
+            then
+                printf "\r$yellow%-${SP}s%s$end\n" "[${COLORS[0]}]" \
+                    "Warning: SPAN directory contains no files"
+            elif [[ $ef -gt 0 ]]
+            then
+                printf "\r$yellow%-${SP}s%s$end\n" "[${COLORS[0]}]" \
+                    "Warning: $ef of $nf files in SPAN directory are empty"
+            fi
+        fi
+
+        for (( i=1; i<${#ENABLE[@]}; ++i ))
+        do
+            if [[ ${ENABLE[$i]} -eq 0 ]]; then continue; fi
+            nf=$(ssh $UNAME@${LOGIN[$i]} find \
+                $PROJECT_DIR/data/${COLORS[$i]}-$TIMESTAMP/ \
+                -not -type d | wc -l)
+            ef=$(ssh $UNAME@${LOGIN[$i]} find \
+                $PROJECT_DIR/data/${COLORS[$i]}-$TIMESTAMP/ \
+                -empty -not -type d | wc -l)
+            if [[ $nf -eq 0 ]]
+            then
+                printf "\r$yellow%-${SP}s%s$end\n" "[${COLORS[0]}]" \
+                    "Warning: ${COLORS[$i]} directory contains no files"
+            elif [[ $ef -gt 0 ]]
+            then
+                printf "\r$yellow%-${SP}s%s$end\n" "[${COLORS[0]}]" \
+                    "Warning: $ef of $nf files in ${COLORS[$i]} directory are empty"
+            fi
+        done
+
+        warn_flag=0
     done
 else
     printf "%-${SP}s%s\n" "[${COLORS[0]}]" \
@@ -228,22 +276,17 @@ do
     # if a node's name appears in .error.d/, it means the slave
     # device has thrown an error and data collection/cleanup is
     # unnecessary.
-    if [[ -f ".error.d/${COLORS[$i]}" ]]
-    then
-        success[$i]=0 # set the success bit for this slave to false
-        ((error_flag++)) # raise the error flag
-        continue # skip all steps for this unit
-    fi
+    # if [[ -f ".error.d/${COLORS[$i]}" ]]
+    # then
+    #     success[$i]=0 # set the success bit for this slave to false
+    #     ((error_flag++)) # raise the error flag
+    #     continue # skip all steps for this unit
+    # fi
 
     # if the slave is disabled, either via the master enable switch
     # or with its COM port baudrates, the unit will be skipped.
     # the same is true for when its success bit is set to 0.
     if [[ ${ENABLE[$i]} -eq 0 ]]
-    then
-        continue
-    fi
-    if [[ (${BPS_COM1[$i]} -eq 0 && ${BPS_COM2[$i]} -eq 0 && \
-           ${BPS_COM3[$i]} -eq 0) ]]
     then
         continue
     fi
@@ -258,7 +301,7 @@ do
     printf "%-${SP}s%s\n" "[${COLORS[$i]}]" "Grabbing INS data"
 
     # kill str2str and secure copy data from data folder
-    ssh $UNAME@${LOGIN[$i]} -t "killall str2str" >/dev/null 2>/dev/null
+    ssh $UNAME@${LOGIN[$i]} "killall str2str" >/dev/null 2>/dev/null
     scp -rp $UNAME@${LOGIN[$i]}:$PROJECT_DIR/data/${COLORS[$i]}-$TIMESTAMP \
         data/ >/dev/null 2>/dev/null
     if [ $? -ne 0 ]
@@ -267,8 +310,8 @@ do
         printf "$red%-${SP}s%s\n$end" "[${COLORS[$i]}]" \
             "Failed to collect INS data"
         ((error_flag++))
-    else
-
+    elif [[ ${BPS_COM1[$i]} -gt 0 ]]
+    then
         # iff data is collected successfully, the INS log needs to be
         # converted to text and offset to the SPAN position (this is
         # done with app/ilconv, the source for which is found in
@@ -285,13 +328,16 @@ do
         then
             # throw an error if conversion fails
             printf "$red%-${SP}s%s\n$end" "[${COLORS[$i]}]" \
-                "Error: failed to convert INS log file to txt"
+                "Error: failed to convert INS log file to text"
             ((error_flag++))
         fi
 
         # move data around, rename folders, add to array of files
-        serialno=$(cat data/${COLORS[$i]}-$TIMESTAMP/.serial)
-        mv data/${COLORS[$i]}-$TIMESTAMP data/$serialno-$TIMESTAMP
+        if [[ -f data/${COLORS[$i]}-$TIMESTAMP/.serial ]]
+        then
+            serialno=$(cat data/${COLORS[$i]}-$TIMESTAMP/.serial)
+            mv data/${COLORS[$i]}-$TIMESTAMP data/$serialno-$TIMESTAMP
+        fi
         # rm data/$serialno-$TIMESTAMP/.serial
         INS_TEXT_FILES+=("$serialno-$TIMESTAMP")
     fi
@@ -311,6 +357,7 @@ then
         # throw an error if conversion fails
         printf "$red%-${SP}s%s$end\n" "[${COLORS[0]}]" \
             "Error: failed to convert SPAN log file to txt"
+        success[0]=0
         ((error_flag++))
     fi
 
@@ -356,10 +403,6 @@ fi
 # at this point the only thing left to do is to generate a report, so if
 # the SPAN data was disabled, the script can exit
 if [[ ${ENABLE[0]} -eq 0 || ${success[0]} -eq 0 ]]
-then
-    exit
-fi
-if [[ ${BPS_COM1[0]} -eq 0 && ${BPS_COM2[0]} -eq 0 && ${BPS_COM3[0]} -eq 0 ]]
 then
     exit
 fi
