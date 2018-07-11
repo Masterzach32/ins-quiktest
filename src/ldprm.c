@@ -28,10 +28,9 @@ struct short_prm
 
 // converts LoadINSPar payload to short_prm struct; if pointer to struct
 // is null, does nothing (note: uses little-endian byte ordering)
-
 void payload2struct(struct short_prm *prm, const unsigned char payload[60])
 {
-    if (!prm) return;
+    if (!prm || !payload) return;
 
     memset(prm->device_name, 0, sizeof(prm->device_name));
     memcpy(prm->device_name, payload + 50, 8);
@@ -68,7 +67,6 @@ void payload2struct(struct short_prm *prm, const unsigned char payload[60])
 
 // does the opposite of the above function - converts short_prm struct
 // to 60 byte payload
-
 void struct2payload(const struct short_prm *prm, unsigned char payload[60])
 {
     if (!prm) return;
@@ -138,7 +136,6 @@ void struct2payload(const struct short_prm *prm, unsigned char payload[60])
 }
 
 // prints payload to stdout with helpful labels
-
 void print_payload(const unsigned char payload[60])
 {
     printf("device name:");
@@ -174,7 +171,6 @@ void print_payload(const unsigned char payload[60])
 // note: values are printed in SI units, as opposed to the way they're
 // stored in the data structure; for example, magnetic declination
 // is expressed in degrees, rather than hundredths of degrees
-
 void print_struct(struct short_prm prm)
 {
     printf("device name: %s\n", prm.device_name);
@@ -198,6 +194,8 @@ void print_struct(struct short_prm prm)
     printf("baro enabled: %hhu\n", prm.baro_altimeter);
 }
 
+// converts user input, unsigned long, to the type
+// used by fcntl.h, speed_t
 speed_t int2speed_t(unsigned long baudrate)
 {
     switch (baudrate)
@@ -402,6 +400,9 @@ int main(int argc, char** argv)
         }
     }
 
+    /////////////////////////////////////////////
+    // altering terminal serial device settings
+    // warning: very hard to read
     struct termios settings;
     tcgetattr(com1, &settings);
     speed_t baudrate = B460800;
@@ -418,6 +419,7 @@ int main(int argc, char** argv)
     settings.c_cc[VTIME] = 0;
     tcsetattr(com1, TCSANOW, &settings);
     tcflush(com1, TCOFLUSH);
+    /////////////////////////////////////////////
 
     // this flag will be 1 if any write commands were issued in argv; if not,
     // the program doesn't need to send a LoadINSPar command at all
@@ -526,13 +528,7 @@ int main(int argc, char** argv)
             "(%d written)\n", argv[0], n);
     }
 
-    // usleep(3*1000*1000); // wait 3 seconds
-    // unsigned char response[20] = {0};
-    // int x = read(com1, response, sizeof(response));
-
     // TODO: verify checksum match
-
-    // printf("%s: successfully loaded parameters.\n", dat.device_name);
 
     return 0;
 }

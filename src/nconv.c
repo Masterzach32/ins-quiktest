@@ -12,6 +12,9 @@ char* num2str(unsigned long num)
     return numstr;
 }
 
+// encoding for the NovAtel OEM7 COM port ID table;
+// does not contain all COM port mappings
+// https://docs.novatel.com/OEM7/Content/Messages/Binary.htm
 char* port_str(unsigned long port_id)
 {
     // there are literally 11,456 cases
@@ -73,6 +76,8 @@ char* port_str(unsigned long port_id)
     return num2str(port_id);
 }
 
+// encoding for NovAtel OEM7 INS solution status
+// https://docs.novatel.com/OEM7/Content/SPAN_Logs/INSATT.htm#InertialSolutionStatus
 char* insstat_str(unsigned long ins_status)
 {
     switch (ins_status)
@@ -92,6 +97,9 @@ char* insstat_str(unsigned long ins_status)
     return num2str(ins_status);
 }
 
+
+// encoding for NovAtel OEM7 receiver fix status
+// https://docs.novatel.com/OEM7/Content/Logs/BESTPOS.htm#SolutionStatus
 char* solstat_str(unsigned long sol_status)
 {
     switch (sol_status)
@@ -115,6 +123,8 @@ char* solstat_str(unsigned long sol_status)
     return num2str(sol_status);
 }
 
+// encoding for NovAtel OEM7 receiver position type
+// https://docs.novatel.com/OEM7/Content/Logs/BESTPOS.htm#Position_VelocityType
 char* postype_str(unsigned long pos_type)
 {
     switch (pos_type)
@@ -157,6 +167,8 @@ char* postype_str(unsigned long pos_type)
     return num2str(pos_type);
 }
 
+// encoding for NovAtel OEM7 GPS reference time status
+// https://docs.novatel.com/OEM7/Content/Messages/GPS_Reference_Time_Statu.htm
 char* timestat_str(unsigned char time_status)
 {
     switch (time_status)
@@ -176,16 +188,21 @@ char* timestat_str(unsigned char time_status)
     return num2str(time_status);
 }
 
+// encoding for NovAtel OEM7 datum ID
+// https://docs.novatel.com/OEM7/Content/Commands/DATUM.htm
 char* datum_str(unsigned char datum_ID)
 {
     switch (datum_ID)
     {
+        case 60: return "WGS72"
         case 61: return "WGS84";
     }
     return num2str(datum_ID);
 }
 
-struct oem7_header
+// NovAtel OEM7 header structure
+// https://docs.novatel.com/OEM7/Content/Messages/ASCII.htm
+struct oem7_header_t
 {
     unsigned char sync_bytes[3], header_len;
     unsigned short msg_ID;
@@ -201,9 +218,11 @@ struct oem7_header
     unsigned short reserved, version;
 };
 
-struct inspva
+// NovAtel OEM7 INS Position, Velocity, and Attitude message
+// https://docs.novatel.com/OEM7/Content/SPAN_Logs/INSPVA.htm
+struct inspva_t
 {
-    struct oem7_header header;
+    struct oem7_header_t header;
     unsigned long week;
     double seconds;
     double latitude, longitude, altitude,
@@ -212,9 +231,16 @@ struct inspva
 
     // actually an enum
     unsigned long status, checksum;
-};
+};s
 
-int payload2inspva(struct inspva *frame, unsigned char *payload)
+// takes a pointer to a inspva_t struct, and a pointer to an unsigned
+// char array. the unsigned char pointer MUST point to the first
+// sync byte of any NovAtel message, i.e. 0xAA. the sync bytes defined
+// by NovAtel OEM7 are 0xAA, 0x44, 0x12. if the payload pointer does
+// not point at the sync bytes of an INSPVA binary message, the
+// function will return an error code and the resulting inspva_t is
+// invalid. upon success, the function will return 0.
+int payload2inspva(struct inspva_t *frame, unsigned char *payload)
 {
     if (!frame || !payload) return 1;
 
@@ -266,7 +292,9 @@ int payload2inspva(struct inspva *frame, unsigned char *payload)
     return 0;
 }
 
-void println_inspva(FILE *out, struct inspva *frame)
+// imitates (imperfectly) the ASCII output produced by NovAtel Convert;
+// prints a single line of INSPVAA onto the FILE* provided.
+void println_inspva(FILE *out, struct inspva_t *frame)
 {
     if (!out || !frame) return;
 
@@ -300,9 +328,11 @@ void println_inspva(FILE *out, struct inspva *frame)
         insstat_str(frame->status), frame->checksum);
 }
 
-struct rtkpos
+// NovAtel OEM7 RTK low latency position data message
+// https://docs.novatel.com/OEM7/Content/Logs/RTKPOS.htm
+struct rtkpos_t
 {
-    struct oem7_header header;
+    struct oem7_header_t header;
     unsigned long sol_status, pos_type;
     double latitude, longitude, altitude;
     float undulation;
@@ -316,7 +346,11 @@ struct rtkpos
     unsigned long checksum;
 };
 
-int payload2rtkpos(struct rtkpos *frame, unsigned char *payload)
+// takes a rtkpos_t pointer and a pointer to the beginning of a
+// RTKPOSB binary message; behavior is principally identical to
+// that of the above function
+// int payload2inspva(struct inspva*, unsigned char*)
+int payload2rtkpos(struct rtkpos_t *frame, unsigned char *payload)
 {
     if (!frame || !payload) return 1;
 
@@ -376,7 +410,9 @@ int payload2rtkpos(struct rtkpos *frame, unsigned char *payload)
     return 0;
 }
 
-void println_rtkpos(FILE *out, struct rtkpos *frame)
+// imitates (imperfectly) the ASCII output produced by NovAtel Convert;
+// prints a single line of RTKPOSA onto the FILE* provided
+void println_rtkpos(FILE *out, struct rtkpos_t *frame)
 {
     if (!out || !frame) return;
 
@@ -455,24 +491,26 @@ int main(int argc, char** argv)
         return 1;
     }
 
+    // get length of input binary file
     unsigned long long filelen;
     fseek(infile, 0, SEEK_END);
     filelen = ftell(infile);
     fseek(infile, 0, SEEK_SET);
 
-    if (filelen < 120)
+    // expecting at least one INSPVA/RTKPOS log, but this is arbitrary
+    if (filelen < 100)
     {
         fprintf(stderr, "%s: %s is too short\n", argv[0], argv[1]);
         return 1;
     }
 
+    // read the binary file into unsigned char array
     unsigned char *file_buffer = (unsigned char*) malloc(filelen);
     if (!file_buffer)
     {
         fprintf(stderr, "%s: memory allocation error\n", argv[0]);
         return 1;
     }
-
     fread(file_buffer, 1, filelen, infile);
     fclose(infile);
 
@@ -557,26 +595,33 @@ int main(int argc, char** argv)
     if (rptr == 0)
     {
         fprintf(stderr, "%s: '%s' does not contain any "
-            "NovAtel OEM6 packets\n", argv[0], argv[1]);
+            "NovAtel OEM7 packets\n", argv[0], argv[1]);
         return 1;
     }
 
-    unsigned char progress, old_progress = 255;
+    // iterate through the file, looking for sync bytes
     while (rptr < filelen)
     {
-        struct inspva INSPVA;
-        struct rtkpos RTKPOS;
+        // taking advantage of the fact that payload2____ functions
+        // return 1 when passed a pointer that does not point to
+        // NovAtel sync bytes, just pass rptr to payload2____
+        // and increment until it returns 0
+
+        struct inspva_t INSPVA;
+        struct rtkpos_t RTKPOS;
         if (payload2inspva(&INSPVA, file_buffer + rptr) == 0)
         {
             println_inspva(inspva_outfile, &INSPVA);
-            rptr += 120;
+            rptr += 120; // skip length of INSPVA
         }
         else if (payload2rtkpos(&RTKPOS, file_buffer + rptr) == 0)
         {
             println_rtkpos(rtkpos_outfile, &RTKPOS);
-            rptr += 104;
+            rptr += 104; // skip length of RTKPOS
         }
-        else ++rptr;
+        else ++rptr; // not on a sync byte, check the next address
+
+        static unsigned char progress, old_progress = 255;
         progress = 100*rptr/filelen;
         if (progress != old_progress)
         {

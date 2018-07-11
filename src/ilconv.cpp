@@ -6,6 +6,7 @@
 
 #include <Eigen/Geometry>
 
+// INS short initial alignment data block
 struct short_align_block
 {
     // only kept for backwards compatibility
@@ -15,6 +16,7 @@ struct short_align_block
     unsigned short USW;
 };
 
+// INS extended initial alignment data block
 struct ext_align_block
 {
     float gyro_bias[3], avg_accel[3], avg_mag[3],
@@ -28,7 +30,8 @@ struct ext_align_block
     float reserved1, reserved2;
 };
 
-struct opvt2ahr
+// INS OPVT2AHR data structure
+struct opvt2ahr_t
 {
     unsigned short heading;
     signed short pitch, roll;
@@ -55,7 +58,15 @@ struct opvt2ahr
     unsigned char new_gps;
 };
 
-int payload2header(struct short_align_block *frame, unsigned char *payload)
+// takes a pointer to a short_align_block struct, and a pointer to
+// an unsigned char array. the unsigned char pointer MUST point
+// to the first sync byte of the message, i.e. 0xAA. the sync bytes
+// defined by the INS ICD are 0xAA, 0x55. if the payload pointer does
+// not point at the sync bytes of the binary message, the function
+// will return an error code and the resulting short_align_block
+// is invalid. upon success, the function will return 0.
+int payload2header(struct short_align_block *frame,
+                        unsigned char *payload)
 {
     // returns 0 if everything goes ok
 
@@ -91,8 +102,12 @@ int payload2header(struct short_align_block *frame, unsigned char *payload)
     return 0;
 }
 
+// takes a ext_align_block pointer and a pointer to the beginning
+// of an extended alignment block binary message; behavior is
+// principally identical to that of the above function
+// int payload2header(struct short_align_block*, unsigned char*)
 int payload2extheader(struct ext_align_block *frame,
-                       unsigned char *payload)
+                        unsigned char *payload)
 {
     // returns 0 if everything goes ok
 
@@ -155,7 +170,11 @@ int payload2extheader(struct ext_align_block *frame,
     return 0;
 }
 
-int payload2opvt2ahr(struct opvt2ahr *frame, unsigned char *payload)
+// takes a rtkpos_t pointer and a pointer to the beginning of aa
+// RTKPOSB binary message; behavior is principally identical to
+// that of the above function
+// int payload2header(struct short_align_block*, unsigned char*)
+int payload2opvt2ahr(struct opvt2ahr_t *frame, unsigned char *payload)
 {
     if (!frame || !payload) return 1;
 
@@ -273,6 +292,7 @@ int payload2opvt2ahr(struct opvt2ahr *frame, unsigned char *payload)
     return 0;
 }
 
+// prints a short alignment data block to the provided FILE*
 void print_header(FILE* out, struct short_align_block *frame)
 {
     if (!out || !frame) return;
@@ -288,21 +308,7 @@ void print_header(FILE* out, struct short_align_block *frame)
     fprintf(out, "unit status word: 0x%04x\n", frame->USW);
 }
 
-/*
-struct ext_align_block
-{
-    float gyro_bias[3], avg_accel[3], avg_mag[3],
-          init_hdg, init_roll, init_pitch;
-    unsigned short USW;
-    signed long UT_sr, UP_sr;
-    signed short t_gyro[3], t_acc[3], t_mag[3];
-    double latitude, longitude, altitude;
-    float v_east, v_north, v_up;
-    double g_true;
-    float reserved1, reserved2;
-};
-*/
-
+// prints an extended alignment data block to the provided FILE*
 void print_extheader(FILE *out, struct ext_align_block *frame)
 {
     if (!out || !frame) return;
@@ -332,7 +338,9 @@ void print_extheader(FILE *out, struct ext_align_block *frame)
         frame->reserved1, frame->reserved2);
 }
 
-void println_opvt2ahr(FILE *out, struct opvt2ahr *frame)
+// prints one line of OPVT2AHR data format to the provided FILE*,
+// imitating the INS Demo Report of Experiment format
+void println_opvt2ahr(FILE *out, struct opvt2ahr_t *frame)
 {
     if (!out) return;
     if (!frame)
@@ -613,7 +621,7 @@ int main(int argc, char** argv)
         // at the beginning of every iteration,
         // rptr will point at the AA in the beginning
         // of every packet
-        struct opvt2ahr frame;
+        struct opvt2ahr_t frame;
         int error = payload2opvt2ahr(&frame, file_buffer + rptr);
         if (error) ++rptr;
         else if (pvoff_flag)
@@ -672,7 +680,7 @@ int main(int argc, char** argv)
 
         if (!error)
         {
-            println_opvt2ahr(outfile, &frame);
+            println_opvt2ahr_t(outfile, &frame);
             rptr += framelen;
         }
         fflush(outfile);
