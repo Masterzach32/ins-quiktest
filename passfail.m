@@ -1,7 +1,5 @@
 #!/usr/bin/octave-cli
-
 format bank
-
 args = argv();
 
 INS_filename = 'sample/LOG-2018-07-04-18-22-16/F1691030-2018-07-04-18-22-16/F1691030-2018-07-04-18-22-16.txt'
@@ -89,25 +87,40 @@ delta(:,1) = radius_earth.*sin(pi/180.*(pos1(:,1) -pos2(:,1)));
 delta(:,2) = radius_earth * sin(pi/180*(pos1(:,2) - pos2(:,2))).* cos(pi/180*(pos1(:,1) - pos2(:,1)));
 delta(:,3) = pos1(:,3)-pos2(:,3);
 
-Result = table;
-Result.Time = span_time;
-Result.Minutes = (Result.Time - Result.Time(1))/60000;
-Result.INS_lat = f1_lat;
-Result.INS_lon = f1_lon;
-Result.INS_alt = f1_alt;
-Result.SPAN_lat = span_lat;
-Result.SPAN_lon = span_lon;
-Result.SPAN_alt = span_alt;
-Result.err_lat = delta(:,1);
-Result.err_lon = delta(:,2);
-Result.err_alt = delta(:,3);
+Result_Time = span_time;
+Result_Minutes = (Result_Time - Result_Time(1))/60000;
+Result_INS_lat = f1_lat;
+Result_INS_lon = f1_lon;
+Result_INS_alt = f1_alt;
+Result_SPAN_lat = span_lat;
+Result_SPAN_lon = span_lon;
+Result_SPAN_alt = span_alt;
+Result_err_lat = delta(:,1);
+Result_err_lon = delta(:,2);
+Result_err_alt = delta(:,3);
 
 %atterr 
 Att1=[f1_heading, f1_pitch, f1_roll];
 Att2=[span_heading,span_pitch, span_roll];
 clear pi
 delta=180/pi*asin(sin(pi/180*(Att2-Att1)));
-delta (1:3,:)
 
+Result_INS_heading = f1_heading;
+Result_INS_pitch =f1_pitch;
+Result_INS_roll = f1_roll;
+Result_SPAN_heading = span_heading;
+Result_SPAN_pitch = span_pitch;
+Result_SPAN_roll = span_roll;
+Result_err_heading = delta(:,1);
+Result_err_pitch = delta(:,2);
+Result_err_roll = delta(:,3);
+clear delta;
 
-
+Result=[Result_Time, Result_Minutes, Result_INS_lat,Result_INS_lon, Result_INS_alt,...
+ Result_SPAN_lat, Result_SPAN_lon, Result_SPAN_alt,...
+ Result_err_lat, Result_err_lon, Result_err_alt,...
+Result_INS_heading, Result_INS_pitch, Result_INS_roll,...
+Result_SPAN_heading, Result_SPAN_pitch, Result_SPAN_roll,...
+Result_err_heading, Result_err_pitch, Result_err_roll
+];
+plot(Result_Minutes, [Result.err_lat, Result.err_lon, Result.err_alt]);
