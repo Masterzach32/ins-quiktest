@@ -1,10 +1,5 @@
 #!/bin/bash
 
-# definitions for console colors
-red=$'\e[1;31m'
-yellow=$'\e[33m'
-end=$'\e[0m'
-
 error_flag=0;
 
 # the following blocks check for the existence of .project and .timestamp;

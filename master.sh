@@ -1,11 +1,5 @@
 #!/bin/bash
 
-# define escape characters for fancy console colors
-red=$'\e[1;31m'
-yellow=$'\e[33m'
-gray=$'\e[90m'
-end=$'\e[0m' # clears formatting
-
 error_flag=0 # counts the number of errors thrown
 
 # the following blocks check for the existence of .project and .timestamp;
@@ -60,13 +54,17 @@ echo "$TIMESTAMP" > .timestamp
 
 # disable the master enable switch if all of the COM ports
 # for a particular device are disabled
-for (( i=0; i<${#ENABLE[@]}; ++i ))
+for (( i=0; i<$NUMBER_OF_NODES; ++i ))
 do
     if [[ (${BPS_COM1[$i]} -eq 0 && ${BPS_COM2[$i]} -eq 0 && \
            ${BPS_COM3[$i]} -eq 0) ]]
     then
         ENABLE[0]=0;
     fi
+
+    # boolean array encodes whether data should be grabbed in
+    # second node-wise for loop
+    success[$i]=0
 done
 
 # if the SPAN is enabled (if ENABLE[0] is greater than 1 in global.conf),
@@ -74,10 +72,6 @@ done
 # in this IF block. the baudrates are described in BPS_COM1[0],
 # BPS_COM2[0], and BPS_COM3[0]. if any baudrate is 0, the program
 # considers this as a disable of that port.
-
-# boolean array encodes whether data should be grabbed in
-# second node-wise for loop
-success=(0 0 0 0 0 0);
 
 if [[ ${ENABLE[0]} -gt 0 ]]
 then
@@ -147,7 +141,7 @@ fi
 # repository to each of the slave devices, and then initiates the
 # slave script.
 
-for (( i=1; i<${#ENABLE[@]}; ++i ))
+for (( i=1; i<$NUMBER_OF_NODES; ++i ))
 do
     if [[ ${ENABLE[$i]} -eq 0 ]]
     then
@@ -238,7 +232,7 @@ then
             fi
         fi
 
-        for (( i=1; i<${#ENABLE[@]}; ++i ))
+        for (( i=1; i<$NUMBER_OF_NODES; ++i ))
         do
             if [[ ${ENABLE[$i]} -eq 0 ]]; then continue; fi
             nf=$(ssh $UNAME@${LOGIN[$i]} find \
@@ -263,6 +257,10 @@ then
 else
     printf "%-${SP}s%s\n" "[${COLORS[0]}]" \
         "$error_flag error(s) were detected during setup"
+    for (( i=0; i<$NUMBER_OF_NODES; ++i ))
+    do
+        success[$i]=0
+    done
 fi
 
 printf "%-${SP}s%s\n" "[${COLORS[0]}]" "Ending test..."
@@ -272,7 +270,7 @@ INS_TEXT_FILES=() # array of successfully converted INS text files
 # this block has the incredibly complicated job of stopping all
 # the slave devices, grabbing their data, offsetting it to the SPAN
 # reference position, and renaming/reorganizing
-for (( i=1; i<${#ENABLE[@]}; ++i ))
+for (( i=1; i<$NUMBER_OF_NODES; ++i ))
 do
     # if a node's name appears in .error.d/, it means the slave
     # device has thrown an error and data collection/cleanup is
@@ -387,7 +385,7 @@ then
     printf "%-${SP}s%s" "[${COLORS[0]}]" \
         "$error_flag error(s) were reported. Delete entire test log? [yes/no] "
     read input
-    message_count=0;
+    message_count=0
     while [[ "$input" != "Yes" && "$input" != "yes" && \
         "$input" != "No" && "$input" != "no" ]]
     do
