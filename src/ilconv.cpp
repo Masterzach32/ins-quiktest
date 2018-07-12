@@ -557,7 +557,7 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    FILE *debug;
+    // FILE *debug;
     /*
     if (pvoff_flag)
     {
@@ -686,7 +686,7 @@ int main(int argc, char** argv)
 
         if (!error)
         {
-            println_opvt2ahr_t(outfile, &frame);
+            println_opvt2ahr(outfile, &frame);
             rptr += framelen;
         }
         fflush(outfile);

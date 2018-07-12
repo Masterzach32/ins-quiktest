@@ -194,7 +194,7 @@ char* datum_str(unsigned char datum_ID)
 {
     switch (datum_ID)
     {
-        case 60: return "WGS72"
+        case 60: return "WGS72";
         case 61: return "WGS84";
     }
     return num2str(datum_ID);
@@ -231,7 +231,7 @@ struct inspva_t
 
     // actually an enum
     unsigned long status, checksum;
-};s
+};
 
 // takes a pointer to a inspva_t struct, and a pointer to an unsigned
 // char array. the unsigned char pointer MUST point to the first

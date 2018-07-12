@@ -169,7 +169,7 @@ do
 
     printf "%-${SP}s%s\n" "[${COLORS[$i]}]" \
         "Syncing repository at ${LOGIN[$i]}:$PROJECT_DIR"
-    scp global.conf local.defaults slave.sh master.sh .timestamp \
+    scp -r global.conf local.defaults slave.sh master.sh .timestamp src/ \
         $UNAME@${LOGIN[$i]}:$PROJECT_DIR >/dev/null 2>/dev/null
     printf "%-${SP}s%s\n" "[${COLORS[$i]}]" "Starting INS data"
     ssh $UNAME@${LOGIN[$i]} -t "cd $PROJECT_DIR; bash slave.sh $i" 2>/dev/null
