@@ -227,12 +227,11 @@ const char* argument_error =
     "type '%s --usage' for more info\n";
 
 const char* usage_help =
-    "usage: %s device [-p] [-b B] [-r dr] [-i s] [-l lx ly lz] [-a h p r]\n"
+    "usage: %s device [-p] [-r dr] [-i s] [-l lx ly lz] [-a h p r]\n"
     "  device: INS COM1 serial device path\n"
     "  [-n]: print INS serial number\n"
     "  [-p]: print INS params in plaintext\n"
     "  [-h]: print INS params in hex\n"
-    "  B: baudrate of the INS COM1 port\n"
     "  dr: data rate of INS output, in Hz; must be multiple of 200 Hz\n"
     "  s: INS initial alignment time in seconds\n"
     "  lx ly lz: offset from imu to antenna, in meters\n"
@@ -240,6 +239,10 @@ const char* usage_help =
 
 // valid data rates for INS data frame output, in Hz
 const unsigned char valid_rates[] = {1, 2, 4, 5, 8, 10, 20, 25, 40, 50, 100, 200};
+
+// possible INS baudrates, in order of likelihood
+const speed_t valid_bps[] =
+    {B460800, B115200, B230400, B57600, B38400, B19200, B9600};
 
 int main(int argc, char** argv)
 {
@@ -267,7 +270,6 @@ int main(int argc, char** argv)
 
     // these flags indicate whether each flag has appeared in argv,
     // rate_flag for -r, init_flag for -i, etc. The default state is 0.
-    unsigned char baud_flag = 0;
     unsigned char rate_flag = 0;
     unsigned char init_flag = 0;
     unsigned char lever_flag = 0;
@@ -277,7 +279,6 @@ int main(int argc, char** argv)
     unsigned char name_flag = 0;
 
     // if user provides arguments, they'll be stored here
-    speed_t baud_input;
     unsigned char rate_input;
     unsigned char init_input;
     double lever_input[3];
@@ -285,19 +286,8 @@ int main(int argc, char** argv)
 
     for (int i = 2; i < argc; ++i) // process every element in argv
     {
-        // baudrate flag
-        if (!strcmp(argv[i], "-b") | !strcmp(argv[i], "--baud"))
-        {
-            if (argc < i + 2)
-            {
-                fprintf(stderr, usage_help, argv[0]);
-                return 1;
-            }
-            baud_input = int2speed_t(atoi(argv[++i]));
-            baud_flag = 1;
-        }
         // data rate flag
-        else if (!strcmp(argv[i], "-r") | !strcmp(argv[i], "--rate"))
+        if (!strcmp(argv[i], "-r") | !strcmp(argv[i], "--rate"))
         {
             if (argc < i + 2)
             {
@@ -400,43 +390,68 @@ int main(int argc, char** argv)
         }
     }
 
-    /////////////////////////////////////////////
-    // altering terminal serial device settings
-    // warning: very hard to read
-    struct termios settings;
-    tcgetattr(com1, &settings);
-    speed_t baudrate = B460800;
-    if (baud_flag) baudrate = baud_input;
-    cfsetspeed(&settings, baudrate);
-    settings.c_iflag &= ~(IGNBRK | BRKINT | PARMRK | ISTRIP |
-        INLCR | IGNCR | ICRNL | IXON );
-    settings.c_oflag &= ~(OPOST | ONLCR);
-    settings.c_lflag &= ~(ISIG | ICANON | IEXTEN | ECHO | ECHOE |
-        ECHOK | ECHOCTL | ECHOKE);
-    settings.c_cflag &= ~(CSIZE | PARENB);
-    settings.c_cflag |= CS8;
-    settings.c_cc[VMIN] = 0;
-    settings.c_cc[VTIME] = 0;
-    tcsetattr(com1, TCSANOW, &settings);
-    tcflush(com1, TCOFLUSH);
-    /////////////////////////////////////////////
-
     // this flag will be 1 if any write commands were issued in argv; if not,
     // the program doesn't need to send a LoadINSPar command at all
     unsigned char write_flag = rate_flag | init_flag | lever_flag | angle_flag;
 
-    // this block sends the STOP command before sending anything else
     {
+        /////////////////////////////////////////////
+        // altering terminal serial device settings
+        // warning: very hard to read
+        struct termios settings;
+        tcgetattr(com1, &settings);
+        settings.c_iflag &= ~(IGNBRK | BRKINT | PARMRK | ISTRIP |
+            INLCR | IGNCR | ICRNL | IXON );
+        settings.c_oflag &= ~(OPOST | ONLCR);
+        settings.c_lflag &= ~(ISIG | ICANON | IEXTEN | ECHO | ECHOE |
+            ECHOK | ECHOCTL | ECHOKE);
+        settings.c_cflag &= ~(CSIZE | PARENB);
+        settings.c_cflag |= CS8;
+        settings.c_cc[VMIN] = 0;
+        settings.c_cc[VTIME] = 0;
+        tcsetattr(com1, TCSANOW, &settings);
+        tcflush(com1, TCOFLUSH);
+        /////////////////////////////////////////////
+    }
+
+    const unsigned char num_of_bps = sizeof(valid_bps)/sizeof(valid_bps[0]);
+    int determined_bps = 0;
+    for (int i = 0; i < num_of_bps && !determined_bps; ++i)
+    {
+        struct termios settings;
+        tcgetattr(com1, &settings);
+        cfsetspeed(&settings, valid_bps[i]);
+        tcsetattr(com1, TCSANOW, &settings);
+        tcflush(com1, TCOFLUSH);
+
         const unsigned char STOP_command[] =
             {0xAA, 0x55, 0, 0, 7, 0, 0xFE, 0x05, 0x01};
-        int x = write(com1, STOP_command, sizeof(STOP_command));
-        if (x != sizeof(STOP_command))
+        const unsigned char GetBIT_command[] =
+            {0xAA, 0x55, 0, 0, 7, 0, 0x1A, 0x21, 0x00};
+        write(com1, STOP_command, sizeof(STOP_command));
+        usleep(20*1000); // sleep for 100 ms
+        write(com1, GetBIT_command, sizeof(GetBIT_command));
+        usleep(1.5*1000*1000); // sleep for 1.5 seconds
+        unsigned char bit_response[12];
+        int x = read(com1, bit_response, 12);
+
+        unsigned short msg_check = bit_response[10] | (bit_response[11] << 8);
+        unsigned short calc_check = 0;
+        for (int j = 2; j < x - 2; ++j) calc_check += bit_response[j];
+
+        if (x == 12 && msg_check == calc_check)
         {
-            fprintf(stderr, "%s: failed to send stop command "
-                "(%d bytes written)\n", argv[0], x);
-            return 1;
+            tcgetattr(com1, &settings);
+            cfsetspeed(&settings, valid_bps[i]);
+            tcsetattr(com1, TCSANOW, &settings);
+            tcflush(com1, TCOFLUSH);
+            determined_bps = 1;
         }
-        usleep(1*1000*1000); // sleep for 1 second
+    }
+    if (!determined_bps)
+    {
+        fprintf(stderr, "%s: error: could not determine baudrate\n", argv[0]);
+        return 1;
     }
 
     // at this point the command line arguments are processed and the program
@@ -497,7 +512,7 @@ int main(int argc, char** argv)
     }
     if (print_flag) print_struct(dat);
     if (hex_flag) print_payload(payload);
-    if (name_flag) printf("%s", dat.device_name);
+    if (name_flag) printf("%s\n", dat.device_name);
 
     // if no write flags are enabled, exit here
     if (!write_flag) return 0;

@@ -73,15 +73,15 @@ then
 
     # app/ldprm is guaranteed to only print the device serial number to stdout
     # when the --name flag is provided; the rest of the parameters are loaded
-    # silently. --baud sets the COM1 baudrate; --rate sets the update frequency;
-    # --init sets the initial alignment time, in seconds; --angles sets the
-    # alignment angles; --lever sets the IMU-to-antenna offset.
+    # silently. --rate sets the update frequency; --init sets the initial 
+    # alignment time, in seconds; --angles sets the alignment angles; --lever
+    # sets the IMU-to-antenna offset.
     #
     # the source file for this app can be found in src/ldprm.c;
     # type 'app/ldprm --usage' for usage information.
     serialno="$(app/ldprm /dev/$portname --name \
-              --baud ${BPS_COM1[$1]} --rate 200 --init 5 \
-              --angles 0 0 0 --lever ${LX[$1]} ${LY[$1]} ${LZ[$1]} 2>/dev/null)"
+              --rate 200 --init 5 --angles 0 0 0
+              --lever ${LX[$1]} ${LY[$1]} ${LZ[$1]} 2>/dev/null)"
 
     # if the serial number is empty, this indicates a failure to connect to
     # the INS; an errror will be thrown, and a file copied to the master error
