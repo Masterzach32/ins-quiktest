@@ -169,7 +169,7 @@ do
 
     printf "%-${SP}s%s\n" "[${COLORS[$i]}]" \
         "Syncing repository at ${LOGIN[$i]}:$PROJECT_DIR"
-    scp -r global.conf local.defaults slave.sh master.sh .timestamp src/ \
+    scp -r global.conf local.defaults slave.sh master.sh .timestamp bin/ \
         $UNAME@${LOGIN[$i]}:$PROJECT_DIR >/dev/null 2>/dev/null
     printf "%-${SP}s%s\n" "[${COLORS[$i]}]" "Starting INS data"
     ssh $UNAME@${LOGIN[$i]} -t "cd $PROJECT_DIR; bash slave.sh $i" 2>/dev/null
@@ -243,11 +243,11 @@ then
                 -empty -not -type d | wc -l)
             if [[ $nf -eq 0 ]]
             then
-                printf "\r$yellow%-${SP}s%s$end\n" "[${COLORS[0]}]" \
+                printf "\r$yellow%-${SP}s%s$end\n" "[${COLORS[$i]}]" \
                     "Warning: ${COLORS[$i]} directory contains no files"
             elif [[ $ef -gt 0 ]]
             then
-                printf "\r$yellow%-${SP}s%s$end\n" "[${COLORS[0]}]" \
+                printf "\r$yellow%-${SP}s%s$end\n" "[${COLORS[$i]}]" \
                     "Warning: $ef of $nf files in ${COLORS[$i]} directory are empty"
             fi
         done
@@ -265,31 +265,14 @@ fi
 
 printf "%-${SP}s%s\n" "[${COLORS[0]}]" "Ending test..."
 
-INS_TEXT_FILES=() # array of successfully converted INS text files
+INS_TEXT_FILES=() # array of S/N of successfully converted text files
 
 # this block has the incredibly complicated job of stopping all
 # the slave devices, grabbing their data, offsetting it to the SPAN
 # reference position, and renaming/reorganizing
 for (( i=1; i<$NUMBER_OF_NODES; ++i ))
 do
-    # if a node's name appears in .error.d/, it means the slave
-    # device has thrown an error and data collection/cleanup is
-    # unnecessary.
-    # if [[ -f ".error.d/${COLORS[$i]}" ]]
-    # then
-    #     success[$i]=0 # set the success bit for this slave to false
-    #     ((error_flag++)) # raise the error flag
-    #     continue # skip all steps for this unit
-    # fi
-
-    # if the slave is disabled, either via the master enable switch
-    # or with its COM port baudrates, the unit will be skipped.
-    # the same is true for when its success bit is set to 0.
-    if [[ ${ENABLE[$i]} -eq 0 ]]
-    then
-        continue
-    fi
-    if [[ ${success[$i]} -eq 0 ]]
+    if [[ ${ENABLE[$i]} -eq 0 || ${success[$i]} -eq 0 ]]
     then
         continue
     fi
@@ -321,7 +304,8 @@ do
         PVZ=$(echo "${LZ[$i]} - ${LZ[0]}" | bc)
         printf "%-${SP}s%s\n" "[${COLORS[$i]}]" \
             "Converting INS data w/ PV offset [$PVX, $PVY, $PVZ]"
-        app/ilconv data/${COLORS[$i]}-$TIMESTAMP/*.bin \
+        serialno=$(cat data/${COLORS[$i]}-$TIMESTAMP/.serial)
+        app/ilconv data/${COLORS[$i]}-$TIMESTAMP/$serialno-$TIMESTAMP.bin \
             --pvoff $PVX $PVY $PVZ >/dev/null 2>/dev/null
         if [ $? -ne 0 ]
         then
@@ -338,7 +322,7 @@ do
             mv data/${COLORS[$i]}-$TIMESTAMP data/$serialno-$TIMESTAMP
         fi
         # rm data/$serialno-$TIMESTAMP/.serial
-        INS_TEXT_FILES+=("$serialno-$TIMESTAMP")
+        INS_TEXT_FILES+=("$serialno")
     fi
     # copy all other LOG folders from slave, and clean up dotfiles
     scp -rp $UNAME@${LOGIN[$i]}:$PROJECT_DIR/data/LOG-* data/ >/dev/null 2>/dev/null
@@ -362,12 +346,13 @@ then
 
     # restructure LOG folder
     mv data/${COLORS[0]}-$TIMESTAMP data/SPAN-$TIMESTAMP
-    mkdir data/LOG
-    mv data/*-$TIMESTAMP data/LOG
-    mv data/LOG data/LOG-$TIMESTAMP
 else
     rm -rf data/${COLORS[0]}-$TIMESTAMP 2>/dev/null
 fi
+
+mkdir data/LOG
+mv data/*-$TIMESTAMP data/LOG
+mv data/LOG data/LOG-$TIMESTAMP
 
 # kill str2str, remove dotfiles
 killall str2str >/dev/null 2>/dev/null
@@ -444,7 +429,7 @@ do
     printf "%-${SP}s%s\n" "[${COLORS[0]}]" \
         "Writing to data/LOG-$TIMESTAMP/$fn/Accuracy Report.dingleberry"
     octave-cli passfail.m \
-        data/LOG-$TIMESTAMP/$fn/$fn.txt \
+        data/LOG-$TIMESTAMP/$fn-$TIMESTAMP/$fn.txt \
         data/LOG-$TIMESTAMP/SPAN-$TIMESTAMP/SPAN-$TIMESTAMP.txt
     touch "data/LOG-$TIMESTAMP/$fn/Accuracy Report.dingleberry"
 done
