@@ -81,13 +81,15 @@ int payload2header(struct short_align_block *frame,
         return 1;
     }
 
-    memcpy(&frame->gyro_bias, payload+6, 12);
-    memcpy(&frame->avg_accel, payload + 12+6, 12);
-    memcpy(&frame->avg_mag, payload + 24+6, 12);
-    memcpy(&frame->init_hdg, payload + 36+6, 4);
-    memcpy(&frame->init_roll, payload + 40+6, 4);
-    memcpy(&frame->init_pitch, payload + 44+6, 4);
-    frame->USW = payload[48+6] | (payload[49+6] << 8);
+    const unsigned char N = 6; // header length
+
+    memcpy(&frame->gyro_bias, payload+N, 12);
+    memcpy(&frame->avg_accel, payload+N+12, 12);
+    memcpy(&frame->avg_mag, payload+N+24, 12);
+    memcpy(&frame->init_hdg, payload+N+36, 4);
+    memcpy(&frame->init_roll, payload+N+40, 4);
+    memcpy(&frame->init_pitch, payload+N+44, 4);
+    frame->USW = payload[N+48] | (payload[N+49] << 8);
 
     unsigned short checksum = 0;
     for (unsigned long i = 2; i < 56; ++i)
@@ -122,40 +124,42 @@ int payload2extheader(struct ext_align_block *frame,
         return 1;
     }
 
-    memcpy(&frame->gyro_bias, payload + 6, 12);
-    memcpy(&frame->avg_accel, payload + 12+6, 12);
-    memcpy(&frame->avg_mag, payload + 24+6, 12);
-    memcpy(&frame->init_hdg, payload + 36+6, 4);
-    memcpy(&frame->init_roll, payload + 40+6, 4);
-    memcpy(&frame->init_pitch, payload + 44+6, 4);
-    frame->USW = payload[48+6] | (payload[49+6] << 8);
+    const unsigned char N = 6; // header length
 
-    frame->UT_sr = payload[50+6] | (payload[51+6] << 8) |
-                   (payload[52+6] << 16) | (payload[53+6] << 24);
-    frame->UP_sr = payload[54+6] | (payload[55+6] << 8) |
-                   (payload[56+6] << 16) | (payload[57+6] << 24);
+    memcpy(&frame->gyro_bias, payload+N, 12);
+    memcpy(&frame->avg_accel, payload+N+12, 12);
+    memcpy(&frame->avg_mag, payload+N+24, 12);
+    memcpy(&frame->init_hdg, payload+N+36, 4);
+    memcpy(&frame->init_roll, payload+N+40, 4);
+    memcpy(&frame->init_pitch, payload+N+44, 4);
+    frame->USW = payload[N+48] | (payload[N+49] << 8);
 
-    frame->t_gyro[0] = payload[58+6] | (payload[59+6] << 8);
-    frame->t_gyro[1] = payload[60+6] | (payload[61+6] << 8);
-    frame->t_gyro[2] = payload[62+6] | (payload[63+6] << 8);
+    frame->UT_sr = payload[N+50] | (payload[N+51] << 8) |
+                   (payload[N+52] << 16) | (payload[N+53] << 24);
+    frame->UP_sr = payload[N+54] | (payload[N+55] << 8) |
+                   (payload[N+56] << 16) | (payload[N+57] << 24);
 
-    frame->t_acc[0] = payload[64+6] | (payload[65+6] << 8);
-    frame->t_acc[1] = payload[66+6] | (payload[67+6] << 8);
-    frame->t_acc[2] = payload[68+6] | (payload[69+6] << 8);
+    frame->t_gyro[0] = payload[N+58] | (payload[N+59] << 8);
+    frame->t_gyro[1] = payload[N+60] | (payload[N+61] << 8);
+    frame->t_gyro[2] = payload[N+62] | (payload[N+63] << 8);
 
-    frame->t_mag[0] = payload[70+6] | (payload[71+6] << 8);
-    frame->t_mag[1] = payload[72+6] | (payload[73+6] << 8);
-    frame->t_mag[2] = payload[74+6] | (payload[75+6] << 8);
+    frame->t_acc[0] = payload[N+64] | (payload[N+65] << 8);
+    frame->t_acc[1] = payload[N+66] | (payload[N+67] << 8);
+    frame->t_acc[2] = payload[N+68] | (payload[N+69] << 8);
 
-    memcpy(&frame->latitude, payload + 76+6, 8);
-    memcpy(&frame->longitude, payload + 84+6, 8);
-    memcpy(&frame->altitude, payload + 92+6, 8);
-    memcpy(&frame->v_east, payload + 100+6, 4);
-    memcpy(&frame->v_north, payload + 104+6, 4);
-    memcpy(&frame->v_up, payload + 108+6, 4);
-    memcpy(&frame->g_true, payload + 112+6, 8);
-    memcpy(&frame->reserved1, payload + 120+6, 4);
-    memcpy(&frame->reserved2, payload + 124+6, 4);
+    frame->t_mag[0] = payload[N+70] | (payload[N+71] << 8);
+    frame->t_mag[1] = payload[N+72] | (payload[N+73] << 8);
+    frame->t_mag[2] = payload[N+74] | (payload[N+75] << 8);
+
+    memcpy(&frame->latitude, payload + N+76, 8);
+    memcpy(&frame->longitude, payload + N+84, 8);
+    memcpy(&frame->altitude, payload + N+92, 8);
+    memcpy(&frame->v_east, payload + N+100, 4);
+    memcpy(&frame->v_north, payload + N+104, 4);
+    memcpy(&frame->v_up, payload + N+108, 4);
+    memcpy(&frame->g_true, payload + N+112, 8);
+    memcpy(&frame->reserved1, payload + N+120, 4);
+    memcpy(&frame->reserved2, payload + N+124, 4);
 
     unsigned short checksum = 0;
     for (unsigned long i = 2; i < 134; ++i)
@@ -170,8 +174,8 @@ int payload2extheader(struct ext_align_block *frame,
     return 0;
 }
 
-// takes a rtkpos_t pointer and a pointer to the beginning of aa
-// RTKPOSB binary message; behavior is principally identical to
+// takes a opvt2ahr_t pointer and a pointer to the beginning of an
+// OPVT2AHR binary message; behavior is principally identical to
 // that of the above function
 // int payload2header(struct short_align_block*, unsigned char*)
 int payload2opvt2ahr(struct opvt2ahr_t *frame, unsigned char *payload)
@@ -184,100 +188,102 @@ int payload2opvt2ahr(struct opvt2ahr_t *frame, unsigned char *payload)
         return 1;
     }
 
-    frame->heading = payload[6+0] | (payload[6+1] << 8);
-    frame->pitch = payload[6+2] | (payload[6+3] << 8);
-    frame->roll = payload[6+4] | (payload[6+5] << 8);
+    const unsigned char N = 6; // header length
 
-    frame->gyro_x = payload[6+6] | (payload[6+7] << 8) |
-        (payload[6+8] << 16) | (payload[6+9] << 24);
-    frame->gyro_y = payload[6+10] | (payload[6+11] << 8) |
-        (payload[6+12] << 16) | (payload[6+13] << 24);
-    frame->gyro_z = payload[6+14] | (payload[6+15] << 8) |
-        (payload[6+16] << 16) | (payload[6+17] << 24);
+    frame->heading = payload[N] | (payload[N+1] << 8);
+    frame->pitch = payload[N+2] | (payload[N+3] << 8);
+    frame->roll = payload[N+4] | (payload[N+5] << 8);
 
-    frame->acc_x = payload[6+18] | (payload[6+19] << 8) |
-        (payload[6+20] << 16) | (payload[6+21] << 24);
-    frame->acc_y = payload[6+22] | payload[6+23] << 8 |
-        (payload[6+24] << 16) | (payload[6+25] << 24);
-    frame->acc_z = payload[6+26] | (payload[6+27] << 8) |
-        (payload[6+28] << 16) | (payload[6+29] << 24);
+    frame->gyro_x = payload[N+6] | (payload[N+7] << 8) |
+        (payload[N+8] << 16) | (payload[N+9] << 24);
+    frame->gyro_y = payload[N+10] | (payload[N+11] << 8) |
+        (payload[N+12] << 16) | (payload[N+13] << 24);
+    frame->gyro_z = payload[N+14] | (payload[N+15] << 8) |
+        (payload[N+16] << 16) | (payload[N+17] << 24);
 
-    frame->mag_x = payload[6+30] | (payload[6+31] << 8);
-    frame->mag_y = payload[6+32] | (payload[6+33] << 8);
-    frame->mag_z = payload[6+34] | (payload[6+35] << 8);
+    frame->acc_x = payload[N+18] | (payload[N+19] << 8) |
+        (payload[N+20] << 16) | (payload[N+21] << 24);
+    frame->acc_y = payload[N+22] | payload[N+23] << 8 |
+        (payload[N+24] << 16) | (payload[N+25] << 24);
+    frame->acc_z = payload[N+26] | (payload[N+27] << 8) |
+        (payload[N+28] << 16) | (payload[N+29] << 24);
 
-    frame->USW = payload[6+36] | (payload[6+37] << 8);
-    frame->vinp = payload[6+38] | (payload[6+39] << 8);
-    frame->temp = payload[6+40] | (payload[6+41] << 8);
+    frame->mag_x = payload[N+30] | (payload[N+31] << 8);
+    frame->mag_y = payload[N+32] | (payload[N+33] << 8);
+    frame->mag_z = payload[N+34] | (payload[N+35] << 8);
 
-    frame->latitude = (long long) payload[6+42] |
-        ((long long) payload[6+43] << 8) |
-        ((long long) payload[6+44] << 16) |
-        ((long long) payload[6+45] << 24) |
-        ((long long) payload[6+46] << 32) |
-        ((long long) payload[6+47] << 40) |
-        ((long long) payload[6+48] << 48) |
-        ((long long) payload[6+49] << 56);
-    frame->longitude = (long long) payload[6+50] |
-        ((long long) payload[6+51] << 8) |
-        ((long long) payload[6+52] << 16) |
-        ((long long) payload[6+53] << 24) |
-        ((long long) payload[6+54] << 32) |
-        ((long long) payload[6+55] << 40) |
-        ((long long) payload[6+56] << 48) |
-        ((long long) payload[6+57] << 56);
-    frame->altitude = payload[6+58] | (payload[6+59] << 8) |
-        (payload[6+60] << 16) | (payload[6+61]) << 24;
+    frame->USW = payload[N+36] | (payload[N+37] << 8);
+    frame->vinp = payload[N+38] | (payload[N+39] << 8);
+    frame->temp = payload[N+40] | (payload[N+41] << 8);
 
-    frame->v_east = payload[6+62] | (payload[6+63] << 8) |
-        (payload[6+64] << 16) | (payload[6+65] << 24);
-    frame->v_north = payload[6+66] | (payload[6+67] << 8) |
-        (payload[6+68] << 16) | (payload[6+69] << 24);
-    frame->v_up = payload[6+70] | (payload[6+71] << 8) |
-        (payload[6+72] << 16) | (payload[6+73] << 24);
+    frame->latitude = (long long) payload[N+42] |
+        ((long long) payload[N+43] << 8) |
+        ((long long) payload[N+44] << 16) |
+        ((long long) payload[N+45] << 24) |
+        ((long long) payload[N+46] << 32) |
+        ((long long) payload[N+47] << 40) |
+        ((long long) payload[N+48] << 48) |
+        ((long long) payload[N+49] << 56);
+    frame->longitude = (long long) payload[N+50] |
+        ((long long) payload[N+51] << 8) |
+        ((long long) payload[N+52] << 16) |
+        ((long long) payload[N+53] << 24) |
+        ((long long) payload[N+54] << 32) |
+        ((long long) payload[N+55] << 40) |
+        ((long long) payload[N+56] << 48) |
+        ((long long) payload[N+57] << 56);
+    frame->altitude = payload[N+58] | (payload[N+59] << 8) |
+        (payload[N+60] << 16) | (payload[N+61]) << 24;
 
-    frame->lat_GNSS = (long long) payload[6+74] |
-        ((long long) payload[6+75] << 8) |
-        ((long long) payload[6+76] << 16) |
-        ((long long) payload[6+77] << 24) |
-        ((long long) payload[6+78] << 32) |
-        ((long long) payload[6+79] << 40) |
-        ((long long) payload[6+80] << 48) |
-        ((long long) payload[6+81] << 56);
+    frame->v_east = payload[N+62] | (payload[N+63] << 8) |
+        (payload[N+64] << 16) | (payload[N+65] << 24);
+    frame->v_north = payload[N+66] | (payload[N+67] << 8) |
+        (payload[N+68] << 16) | (payload[N+69] << 24);
+    frame->v_up = payload[N+70] | (payload[N+71] << 8) |
+        (payload[N+72] << 16) | (payload[N+73] << 24);
+
+    frame->lat_GNSS = (long long) payload[N+74] |
+        ((long long) payload[N+75] << 8) |
+        ((long long) payload[N+76] << 16) |
+        ((long long) payload[N+77] << 24) |
+        ((long long) payload[N+78] << 32) |
+        ((long long) payload[N+79] << 40) |
+        ((long long) payload[N+80] << 48) |
+        ((long long) payload[N+81] << 56);
     frame->lon_GNSS = (long long) payload[82] |
-        ((long long) payload[6+83] << 8) |
-        ((long long) payload[6+84] << 16) |
-        ((long long) payload[6+85] << 24) |
-        ((long long) payload[6+86] << 32) |
-        ((long long) payload[6+87] << 40) |
-        ((long long) payload[6+88] << 48) |
-        ((long long) payload[6+89] << 56);
-    frame->alt_GNSS = payload[6+90] | (payload[6+91] << 8) |
-        (payload[6+92] << 16) | (payload[6+93] << 24);
+        ((long long) payload[N+83] << 8) |
+        ((long long) payload[N+84] << 16) |
+        ((long long) payload[N+85] << 24) |
+        ((long long) payload[N+86] << 32) |
+        ((long long) payload[N+87] << 40) |
+        ((long long) payload[N+88] << 48) |
+        ((long long) payload[N+89] << 56);
+    frame->alt_GNSS = payload[N+90] | (payload[N+91] << 8) |
+        (payload[N+92] << 16) | (payload[N+93] << 24);
 
-    frame->vh_GNSS = payload[6+94] | (payload[6+95] << 8) |
-        (payload[6+96] << 16) | (payload[6+97] << 24);
-    frame->track_grnd = payload[6+98] | (payload[6+99] << 8);
-    frame->vup_GNSS = payload[6+100] | (payload[6+101] << 8) |
-        (payload[6+102] << 16) | (payload[6+103] << 24);
+    frame->vh_GNSS = payload[N+94] | (payload[N+95] << 8) |
+        (payload[N+96] << 16) | (payload[N+97] << 24);
+    frame->track_grnd = payload[N+98] | (payload[N+99] << 8);
+    frame->vup_GNSS = payload[N+100] | (payload[N+101] << 8) |
+        (payload[N+102] << 16) | (payload[N+103] << 24);
 
-    frame->ms_gps = payload[6+104] | (payload[6+105] << 8) |
-        (payload[6+106] << 16) | (payload[6+107] << 24);
-    frame->GNSS_info1 = payload[6+108];
-    frame->GNSS_info2 = payload[6+109];
-    frame->solnSVs = payload[6+110];
-    frame->v_latency = payload[6+111] | (payload[6+112] << 8);
-    frame->angle_pos_type = payload[6+113];
-    frame->hdg_GNSS = payload[6+114] | (payload[6+115] << 8);
+    frame->ms_gps = payload[N+104] | (payload[N+105] << 8) |
+        (payload[N+106] << 16) | (payload[N+107] << 24);
+    frame->GNSS_info1 = payload[N+108];
+    frame->GNSS_info2 = payload[N+109];
+    frame->solnSVs = payload[N+110];
+    frame->v_latency = payload[N+111] | (payload[N+112] << 8);
+    frame->angle_pos_type = payload[N+113];
+    frame->hdg_GNSS = payload[N+114] | (payload[N+115] << 8);
 
-    frame->latency_ms_hdg = payload[6+116] | (payload[6+117] << 8);
-    frame->latency_ms_pos = payload[6+118] | (payload[6+119] << 8);
-    frame->latency_ms_vel = payload[6+120] | (payload[6+121] << 8);
+    frame->latency_ms_hdg = payload[N+116] | (payload[N+117] << 8);
+    frame->latency_ms_pos = payload[N+118] | (payload[N+119] << 8);
+    frame->latency_ms_vel = payload[N+120] | (payload[N+121] << 8);
 
-    frame->p_bar = payload[6+122] | (payload[6+123] << 8);
-    frame->h_bar = payload[6+124] | (payload[6+125] << 8) |
-        (payload[6+126] << 16) | (payload[6+127] << 24);
-    frame->new_gps = payload[6+128];
+    frame->p_bar = payload[N+122] | (payload[N+123] << 8);
+    frame->h_bar = payload[N+124] | (payload[N+125] << 8) |
+        (payload[N+126] << 16) | (payload[N+127] << 24);
+    frame->new_gps = payload[N+128];
 
     unsigned short checksum = 0;
     for (unsigned long i = 2; i < 135; ++i)

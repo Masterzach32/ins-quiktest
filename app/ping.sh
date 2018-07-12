@@ -1,9 +1,11 @@
 #!/bin/bash
 
-# define escape characters for fancy console colors
-red=$'\e[1;31m'
-yellow=$'\e[33m'
-end=$'\e[0m' # clears formatting
+# ping.sh
+
+# this program is a utility which pings all the hostnames
+# defined in global.conf on the local area network. it can
+# be used as a diagnostic tool, which can verify whether
+# any or all nodes are present on the network.
 
 if [ ! -f .project ] # working dir is not in project
 then
@@ -13,7 +15,7 @@ fi
 
 source global.conf
 
-for (( i=0; i<${#LOGIN[@]}; ++i ))
+for (( i=0; i<$NUMBER_OF_NODES; ++i ))
 do
     timeout 2 ping -c 1 ${LOGIN[$i]} >/dev/null 2>/dev/null
     if [[ $? -eq 0 ]]
