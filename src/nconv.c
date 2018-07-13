@@ -306,7 +306,7 @@ void println_inspva(FILE *out, struct inspva_t *frame)
                  "%.1f," // idle_time - float
                  "%s," // time_status - string
                  "%hu," // week - ushort
-                 "%.3f,%lu,%hx,%hu",
+                 "%.3f,%08lx,%hx,%hu",
         port_str(frame->header.port_addr),
         // frame->header.msg_type,
         // frame->header.msg_len,
@@ -328,9 +328,13 @@ void println_inspva(FILE *out, struct inspva_t *frame)
         insstat_str(frame->status), frame->checksum);
 }
 
-// NovAtel OEM7 RTK low latency position data message
+// message structure for NovAtel OEM7 BESTPOS, BESTGNSSPOS,
+// and RTKPOS logs; these logs have the same fields, but ascribe
+// different semantic meaning to them
+// https://docs.novatel.com/OEM7/Content/Logs/BESTPOS.htm
+// https://docs.novatel.com/OEM7/Content/SPAN_Logs/BESTGNSSPOS.htm
 // https://docs.novatel.com/OEM7/Content/Logs/RTKPOS.htm
-struct rtkpos_t
+struct pos_t
 {
     struct oem7_header_t header;
     unsigned long sol_status, pos_type;
@@ -346,25 +350,38 @@ struct rtkpos_t
     unsigned long checksum;
 };
 
-// takes a rtkpos_t pointer and a pointer to the beginning of a
-// RTKPOSB binary message; behavior is principally identical to
+// flag indicating different position log IDs;
+// used in tandem with pos_t
+enum pos_flag_t
+{
+    BESTPOS = 42,
+    BESTGNSSPOS = 1429,
+    RTKPOS = 141
+};
+
+// takes a NovAtel position log pointer and a pointer to the beginning
+// of a binary message; behavior is principally identical to
 // that of the above function
 // int payload2inspva(struct inspva*, unsigned char*)
-int payload2rtkpos(struct rtkpos_t *frame, unsigned char *payload)
+// except that the message must be identified with pos_flag_t
+int payload2pos(struct pos_t *frame, unsigned char *payload,
+                enum pos_flag_t ID)
 {
     if (!frame || !payload) return 1;
 
     if ((payload[0] != 0xAA) || (payload[1] != 0x44) ||
-        (payload[2] != 0x12) ||
-        (payload[4] != 0x8D) || (payload[5] != 0x00))
+        (payload[2] != 0x12))
     {
-        // this isn't the start of an RTKPOS packet
-        return 1;
+        return 1; // sync bytes not present
+    }
+    frame->header.msg_ID = payload[4] | (payload[5] << 8);
+    if (frame->header.msg_ID != ID)
+    {
+        return 1; // log ID doesn't match ID provided
     }
 
     memcpy(frame->header.sync_bytes, payload, 3);
     unsigned short N = (frame->header.header_len = payload[3]);
-    frame->header.msg_ID = payload[4] | (payload[5] << 8);
     frame->header.msg_type = payload[6];
     frame->header.port_addr = payload[7];
     frame->header.msg_len = payload[8] | (payload[9] << 8);
@@ -411,12 +428,21 @@ int payload2rtkpos(struct rtkpos_t *frame, unsigned char *payload)
 }
 
 // imitates (imperfectly) the ASCII output produced by NovAtel Convert;
-// prints a single line of RTKPOSA onto the FILE* provided
-void println_rtkpos(FILE *out, struct rtkpos_t *frame)
+// prints a line of the specified POS log onto the FILE* provided
+void println_pos(FILE *out, struct pos_t *frame,
+                 enum pos_flag_t ID)
 {
     if (!out || !frame) return;
 
-    fprintf(out, "#RTKPOSA,"
+    char* title = "UNKNOWN";
+    switch (ID)
+    {
+        case BESTPOS: title = "BESTPOSA"; break;
+        case BESTGNSSPOS: title = "BESTGNSSPOSA"; break;
+        case RTKPOS: title = "RTKPOSA"; break;
+    }
+
+    fprintf(out, "#%s,"
                  "%s," // port_addr - uchar
                  // "%hhu," // msg_type - uchar
                  // "%hu," // msg_len - ushort
@@ -424,7 +450,8 @@ void println_rtkpos(FILE *out, struct rtkpos_t *frame)
                  "%.1f," // idle_time - float
                  "%s," // time_status - string
                  "%hu," // week - ushort
-                 "%.3f,%lu,%hx,%hu",
+                 "%.3f,%08lx,%hx,%hu",
+        title,
         port_str(frame->header.port_addr),
         // frame->header.msg_type,
         // frame->header.msg_len,
@@ -443,7 +470,8 @@ void println_rtkpos(FILE *out, struct rtkpos_t *frame)
         "%.4f,%.4f,%.4f,"
         "\"%s\",%.3f,%.3f,"
         "%hhu,%hhu,%hhu,%hhu,"
-        "%02hhx,%02hhx,%02hhx,"
+        "%02hhx,"
+        "%02hhx,%02hhx,%02hhx"
         "*%08lx"
         "\n",
         solstat_str(frame->sol_status),
@@ -454,6 +482,7 @@ void println_rtkpos(FILE *out, struct rtkpos_t *frame)
         frame->lat_STD, frame->lon_STD, frame->alt_STD,
         frame->station_ID, frame->diff_age, frame->sol_age,
         frame->SVs, frame->solnSVs, frame->ggL1, frame->solnMultiSVs,
+        frame->reserved,
         frame->ext_sol_stat, frame->GB_mask, frame->GG_mask,
         frame->checksum
         );
@@ -497,7 +526,7 @@ int main(int argc, char** argv)
     filelen = ftell(infile);
     fseek(infile, 0, SEEK_SET);
 
-    // expecting at least one INSPVA/RTKPOS log, but this is arbitrary
+    // expecting at least one INSPVA/bestpos log, but this is arbitrary
     if (filelen < 100)
     {
         fprintf(stderr, "%s: %s is too short\n", argv[0], argv[1]);
@@ -548,37 +577,37 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    // allocate and name RTKPOS text file
-    char *rtkpos_fn = (char*) malloc(strlen(argv[1]) + 1);
-    if (!rtkpos_fn)
+    // allocate and name bestpos text file
+    char *bestpos_fn = (char*) malloc(strlen(argv[1]) + 1);
+    if (!bestpos_fn)
     {
         fprintf(stderr, "%s: memory allocation error\n", argv[0]);
         return 1;
     }
-    strcpy(rtkpos_fn, argv[1]);
-    ext_ptr = strstr(rtkpos_fn, ".bin");
-    if (!ext_ptr) // tack ".rtk" on the end
+    strcpy(bestpos_fn, argv[1]);
+    ext_ptr = strstr(bestpos_fn, ".bin");
+    if (!ext_ptr) // tack ".pos" on the end
     {
-        free(rtkpos_fn);
-        rtkpos_fn = (char*) malloc(strlen(argv[1]) + 5);
-        if (!rtkpos_fn)
+        free(bestpos_fn);
+        bestpos_fn = (char*) malloc(strlen(argv[1]) + 5);
+        if (!bestpos_fn)
         {
             fprintf(stderr, "%s: memory allocation error\n", argv[0]);
             return 1;
         }
-        strcpy(rtkpos_fn, argv[1]);
-        strcpy(rtkpos_fn + strlen(rtkpos_fn), ".rtk");
+        strcpy(bestpos_fn, argv[1]);
+        strcpy(bestpos_fn + strlen(bestpos_fn), ".pos");
     }
-    else // replace ".bin" with ".rtk"
+    else // replace ".bin" with ".pos"
     {
-        strcpy(ext_ptr, ".rtk");
+        strcpy(ext_ptr, ".pos");
     }
 
-    FILE *rtkpos_outfile = fopen(rtkpos_fn, "wb");
-    if (!rtkpos_outfile)
+    FILE *pos_outfile = fopen(bestpos_fn, "wb");
+    if (!pos_outfile)
     {
         fprintf(stderr, "%s: failed to open '%s'\n",
-            argv[0], rtkpos_fn);
+            argv[0], bestpos_fn);
         return 1;
     }
 
@@ -608,16 +637,29 @@ int main(int argc, char** argv)
         // and increment until it returns 0
 
         struct inspva_t INSPVA;
-        struct rtkpos_t RTKPOS;
+        struct pos_t POS;
         if (payload2inspva(&INSPVA, file_buffer + rptr) == 0)
         {
             println_inspva(inspva_outfile, &INSPVA);
             rptr += 120; // skip length of INSPVA
         }
-        else if (payload2rtkpos(&RTKPOS, file_buffer + rptr) == 0)
+        else if (payload2pos(&POS, file_buffer + rptr,
+            BESTPOS) == 0)
         {
-            println_rtkpos(rtkpos_outfile, &RTKPOS);
-            rptr += 104; // skip length of RTKPOS
+            println_pos(pos_outfile, &POS, BESTPOS);
+            rptr += 104; // skip length of POS log
+        }
+        else if (payload2pos(&POS, file_buffer + rptr,
+            BESTGNSSPOS) == 0)
+        {
+            println_pos(pos_outfile, &POS, BESTGNSSPOS);
+            rptr += 104; // skip length of POS log
+        }
+        else if (payload2pos(&POS, file_buffer + rptr,
+            RTKPOS) == 0)
+        {
+            println_pos(pos_outfile, &POS, RTKPOS);
+            rptr += 104; // skip length of POS log
         }
         else ++rptr; // not on a sync byte, check the next address
 
@@ -632,6 +674,6 @@ int main(int argc, char** argv)
     }
     fprintf(stderr, "\r%s: Writing... Done.\n", argv[0]);
     fclose(inspva_outfile);
-    fclose(rtkpos_outfile);
+    fclose(pos_outfile);
     return 0;
 }

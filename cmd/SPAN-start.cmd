@@ -16,7 +16,6 @@ log gpsephemb onnew
 log gloephemerisb onnew
 log rawimusxb onnew
 log inspvab ontime 0.05
-log rtkposb ontime 0.05
 
 @
 unlogall
