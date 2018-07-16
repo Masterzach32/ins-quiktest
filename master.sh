@@ -351,8 +351,8 @@ else
 fi
 
 mkdir data/LOG
-mv data/*-$TIMESTAMP data/LOG
-mv data/LOG data/LOG-$TIMESTAMP
+mv data/*-$TIMESTAMP data/LOG 2>/dev/null
+mv data/LOG data/LOG-$TIMESTAMP 2>/dev/null
 
 # kill str2str, remove dotfiles
 killall str2str >/dev/null 2>/dev/null
