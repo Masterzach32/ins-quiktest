@@ -1,4 +1,5 @@
 #!/usr/bin/octave-cli
+%pkg rebuild -noauto oct2mat
 format bank
 args = argv();
 
@@ -6,8 +7,8 @@ INS_filename = 'sample/LOG-2018-07-04-18-22-16/F1691030-2018-07-04-18-22-16/F169
 SPAN_filename = 'sample/LOG-2018-07-04-18-22-16/SPAN-2018-07-04-18-22-16/SPAN-2018-07-04-18-22-16.txt'
 
 if length(args) == 2
-    INS_filename = args(1)
-    SPAN_filename = args(2)
+    INS_filename = args{1}
+    SPAN_filename = args{2}
 else
     printf('(GIMME TWO ARGUMENTS, YO)\n');
 end
@@ -124,4 +125,6 @@ Result_SPAN_heading, Result_SPAN_pitch, Result_SPAN_roll,...
 Result_err_heading, Result_err_pitch, Result_err_roll
 ];
 % Figure out how to plot next 
-plot(Result_Minutes, [Result.err_lat, Result.err_lon, Result.err_alt]);
+x = -10:0.1:10; # Create an evenly-spaced vector from -10..10
+y = sin (x);    # y is also a vector
+plot (x, y); 
