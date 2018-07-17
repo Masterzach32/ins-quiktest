@@ -424,12 +424,12 @@ fi
 # for every INS text file added during second node loop,
 # run passfail.m with the test file and INSPVAA log as arguments
 printf "%-${SP}s%s\n" "[${COLORS[0]}]" "Generating reports..."
-for fn in "${INS_TEXT_FILES[@]}"
+for sn in "${INS_TEXT_FILES[@]}"
 do
     printf "%-${SP}s%s\n" "[${COLORS[0]}]" \
-        "Writing to data/LOG-$TIMESTAMP/$fn/Accuracy Report.dingleberry"
+        "Writing to data/LOG-$TIMESTAMP/$sn/Accuracy Report.dingleberry"
     octave-cli passfail.m \
-        data/LOG-$TIMESTAMP/$fn-$TIMESTAMP/$fn.txt \
-        data/LOG-$TIMESTAMP/SPAN-$TIMESTAMP/SPAN-$TIMESTAMP.txt
-    touch "data/LOG-$TIMESTAMP/$fn/Accuracy Report.dingleberry"
+        data/LOG-$TIMESTAMP/$sn-$TIMESTAMP/$sn-$TIMESTAMP.txt \
+        data/LOG-$TIMESTAMP/SPAN-$TIMESTAMP/SPAN-$TIMESTAMP.ins
+    touch "data/LOG-$TIMESTAMP/$sn-$TIMESTAMP/Accuracy Report.dingleberry"
 done

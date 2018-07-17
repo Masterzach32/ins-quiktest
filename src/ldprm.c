@@ -276,7 +276,7 @@ const char* usage_help =
     "  [-n]: print INS serial number\n"
     "  [-v]: verbose output\n"
     "  [-h]: print INS params in hex\n"
-    "  br: operating bitrate for COM1"
+    "  br: operating bitrate for COM1\n"
     "  dr: data rate of INS output, in Hz; must be factor of 200 Hz\n"
     "  s: INS initial alignment time in seconds\n"
     "  lx ly lz: offset from imu to antenna, in meters\n"
