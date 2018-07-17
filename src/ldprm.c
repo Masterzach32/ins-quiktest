@@ -208,7 +208,7 @@ speed_t int2speed_t(unsigned long baudrate)
         case 460800: return B460800;
         case 500000: return B500000;
         case 576000: return B576000;
-        case 921000: return B921600;
+        case 921600: return B921600;
         case 1000000: return B1000000;
         case 1152000: return B1152000;
         case 1500000: return B1500000;
@@ -248,17 +248,36 @@ char* speed2str(speed_t speed)
     return "[BAUDRATE]";
 }
 
+unsigned char speed2id(speed_t speed)
+{
+    switch (speed)
+    {
+        case B4800: return 1;
+        case B9600: return 2;
+        // case B14400: return 3;
+        case B19200: return 4;
+        case B38400: return 5;
+        case B57600: return 6;
+        case B115200: return 7;
+        case B230400: return 8;
+        case B460800: return 9;
+        case B921600: return 10;
+    }
+    return 0;
+}
+
 const char* argument_error =
     "%s: invalid option -- '%s'\n"
     "type '%s --usage' for more info\n";
 
 const char* usage_help =
-    "usage: %s device [-p] [-r dr] [-i s] [-l lx ly lz] [-a h p r]\n"
+    "usage: %s device [-n -v -h] [-b br] [-r dr] [-i s] [-l lx ly lz] [-a h p r]\n"
     "  device: INS COM1 serial device path\n"
     "  [-n]: print INS serial number\n"
-    "  [-p]: print INS params in plaintext\n"
+    "  [-v]: verbose output\n"
     "  [-h]: print INS params in hex\n"
-    "  dr: data rate of INS output, in Hz; must be multiple of 200 Hz\n"
+    "  br: operating bitrate for COM1"
+    "  dr: data rate of INS output, in Hz; must be factor of 200 Hz\n"
     "  s: INS initial alignment time in seconds\n"
     "  lx ly lz: offset from imu to antenna, in meters\n"
     "  h p r: angle offset from vehicle orientation, in degrees\n";
@@ -270,9 +289,6 @@ const unsigned char valid_rates[] = {1, 2, 4, 5, 8, 10, 20, 25, 40, 50, 100, 200
 const speed_t valid_bps[] =
     {B460800, B115200, B921600, B230400, B4800,
      B9600, B19200, B38400, B57600};
-
-const speed_t preferred_baudrate = B460800;
-const unsigned char preferred_baudrate_ID = 9;
 
 int main(int argc, char** argv)
 {
@@ -300,6 +316,7 @@ int main(int argc, char** argv)
 
     // these flags indicate whether each flag has appeared in argv,
     // rate_flag for -r, init_flag for -i, etc. The default state is 0.
+    unsigned char baud_flag = 0;
     unsigned char rate_flag = 0;
     unsigned char init_flag = 0;
     unsigned char lever_flag = 0;
@@ -309,6 +326,7 @@ int main(int argc, char** argv)
     unsigned char name_flag = 0;
 
     // if user provides arguments, they'll be stored here
+    speed_t baud_input;
     unsigned char rate_input;
     unsigned char init_input;
     double lever_input[3];
@@ -316,8 +334,27 @@ int main(int argc, char** argv)
 
     for (int i = 2; i < argc; ++i) // process every element in argv
     {
+        // baudrate flag
+        if (!strcmp(argv[i], "-b") | !strcmp(argv[i], "--baud"))
+        {
+            if (argc < i + 2)
+            {
+                fprintf(stderr, usage_help, argv[0]);
+                return 1;
+            }
+            baud_input = int2speed_t(atoi(argv[++i]));
+            baud_flag = 1;
+
+            if (baud_input != B115200 && baud_input != B230400 &&
+                baud_input != B460800 && baud_input != B921600)
+            {
+                fprintf(stderr, "%s: error: invalid or unsupported "
+                    "bitrate '%s'\n", argv[0], argv[i]);
+                return 1;
+            }
+        }
         // data rate flag
-        if (!strcmp(argv[i], "-r") | !strcmp(argv[i], "--rate"))
+        else if (!strcmp(argv[i], "-r") | !strcmp(argv[i], "--rate"))
         {
             if (argc < i + 2)
             {
@@ -399,7 +436,7 @@ int main(int argc, char** argv)
             angle_input[2] = atof(argv[++i]);
         }
         // print to stdout flag
-        else if (!strcmp(argv[i], "-p") | !strcmp(argv[i], "--print"))
+        else if (!strcmp(argv[i], "-v") | !strcmp(argv[i], "--verbose"))
         {
             print_flag = 1;
         }
@@ -493,10 +530,10 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    if (baudrate != preferred_baudrate) // changing COM1 baudrate
+    if (baud_flag && baudrate != baud_input) // changing COM1 baudrate
     {
         if (print_flag) printf("Changing baudrate from %s to %s\n",
-            speed2str(baudrate), speed2str(preferred_baudrate));
+            speed2str(baudrate), speed2str(baud_input));
 
         unsigned char read_full_prm[] = {0xAA, 0x55, 0, 0, 7, 0, 0x0B, 0x12, 0};
         unsigned char write_full_prm[] =  {0xAA, 0x55, 0, 0, 7, 0, 0x0E, 0x15, 0};
@@ -507,7 +544,7 @@ int main(int argc, char** argv)
             fprintf(stderr, "%s: error: wrote %d/8 bytes\n", argv[0], x);
             return 1;
         }
-        usleep(1*1000*1000); // sleep for 1.5 seconds
+        usleep(500*1000); // sleep 500 ms
         unsigned char full_prm_frame[2056];
         x = read(com1, full_prm_frame, 2056);
         if (x != 2056)
@@ -530,7 +567,7 @@ int main(int argc, char** argv)
             return 1;
         }
 
-        full_prm_frame[6 + 946] = preferred_baudrate_ID;
+        full_prm_frame[6 + 946] = speed2id(baud_input);
         full_prm_frame[2] = 0;
         full_prm_frame[3] = 0;
         full_prm_frame[4] = 6;
@@ -552,7 +589,7 @@ int main(int argc, char** argv)
 
         struct termios settings;
         tcgetattr(com1, &settings);
-        cfsetspeed(&settings, preferred_baudrate);
+        cfsetspeed(&settings, baud_input);
         tcsetattr(com1, TCSANOW, &settings);
         tcflush(com1, TCOFLUSH);
 
@@ -578,7 +615,7 @@ int main(int argc, char** argv)
                             "(%d bytes written)\n", argv[0], x);
             return 1;
         }
-        usleep(500*1000); // wait for 500 milliseconds
+        usleep(50*1000); // wait for 50 milliseconds
         x = read(com1, header, sizeof(header)); // read the header
         x += read(com1, payload, sizeof(payload)); // read the payload
         x += read(com1, checksum, sizeof(checksum)); // checksum
