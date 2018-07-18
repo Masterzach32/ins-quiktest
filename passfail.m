@@ -1,14 +1,17 @@
 #!/usr/bin/octave-cli
-%pkg rebuild -noauto oct2mat
 format bank
 args = argv();
 
-INS_filename = 'sample/LOG-2018-07-04-18-22-16/F1691030-2018-07-04-18-22-16/F1691030-2018-07-04-18-22-16.txt'
-SPAN_filename = 'sample/LOG-2018-07-04-18-22-16/SPAN-2018-07-04-18-22-16/SPAN-2018-07-04-18-22-16.txt'
+%What you need to do now is add the position file and figure out how to catch errors like the timestamp onei
 
-if length(args) == 2
-    INS_filename = args{1}
-    SPAN_filename = args{2}
+INS_filename = 'sample/LOG-2018-07-04-18-22-16/F1691030-2018-07-04-18-22-16/F1691030-2018-07-04-18-22-16.txt';
+SPAN_filename = 'sample/LOG-2018-07-04-18-22-16/SPAN-2018-07-04-18-22-16/SPAN-2018-07-04-18-22-16.txt';
+out_filename='data/Results.csv';
+
+if length(args) == 3
+    INS_filename = args{1};
+    SPAN_filename = args{2};
+    out_filename = args{3};
 else
     printf('(GIMME TWO ARGUMENTS, YO)\n');
 end
@@ -49,6 +52,8 @@ f1=t1(ind_ins,:);
 span=t_span(ind_span,:);
 %f1 and span are time intersected tables
 %Now, find the index you need to start evaluating the test from)
+
+
 
 span_lat=span(:,5);
 for i=1:length(span_lat)
@@ -124,7 +129,19 @@ Result_INS_heading, Result_INS_pitch, Result_INS_roll,...
 Result_SPAN_heading, Result_SPAN_pitch, Result_SPAN_roll,...
 Result_err_heading, Result_err_pitch, Result_err_roll
 ];
-% Figure out how to plot next 
-x = -10:0.1:10; # Create an evenly-spaced vector from -10..10
-y = sin (x);    # y is also a vector
-plot (x, y); 
+
+%Header={'Time','Minutes','INS','INS'}
+%Result=Result(1:10,1);
+%Header (1,1)
+%Result=[Header(1,1);Result];
+%Result (1:10,:)
+
+%csvwrite (out_filename, Result)
+
+fileID = fopen(out_filename,'w');
+fprintf(fileID,'Time,Minutes,INS_Lat,INS_Lon,INS_alt,SPAN_lat,SPAN_long,SPAN_alt,Err_lat,Err_lon,Err_alt,INS_heading,INS_pitch,INS_roll,SPAN_heading,SPAN_pitch,SPAN_roll,Err_heading,Err_pitch,Err_roll\n');
+for i=1:length(Result)
+fprintf(fileID, '%d,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f\n',Result(i,:));
+end
+fclose(fileID);
+
