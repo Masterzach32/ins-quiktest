@@ -20,8 +20,10 @@ do
     timeout 2 ping -c 1 ${LOGIN[$i]} >/dev/null 2>/dev/null
     if [[ $? -eq 0 ]]
     then
-        printf "%-10s%s\n" "[${COLORS[$i]}]" "Found ${LOGIN[$i]}"
+        printf "%-${SP}s%s\n" "[${COLORS[$i]}]" \
+            "Found ${LOGIN[$i]}"
     else
-        printf "$red%-10s%s$end\n" "[${COLORS[$i]}]" "Did not find ${LOGIN[$i]}"
+        printf "$red%-${SP}s%s$end\n" "[${COLORS[$i]}]" \
+            "Did not find ${LOGIN[$i]}"
     fi
 done
