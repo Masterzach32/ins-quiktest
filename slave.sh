@@ -80,8 +80,9 @@ then
     # the source file for this app can be found in src/ldprm.c;
     # type 'app/ldprm --usage' for usage information.
     serialno="$(app/ldprm /dev/$portname --name \
-              --rate 200 --init 5 --angles 0 0 0
-              --lever ${LX[$1]} ${LY[$1]} ${LZ[$1]} 2>/dev/null)"
+              --rate 200 --init 5 --angles 0 0 0 \
+              --lever ${LX[$1]} ${LY[$1]} ${LZ[$1]} \
+              --baud ${BPS_COM1[$1]} 2>/dev/null)"
 
     # if the serial number is empty, this indicates a failure to connect to
     # the INS; an errror will be thrown, and a file copied to the master error

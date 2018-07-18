@@ -34,6 +34,35 @@ trap '' 2
 # a soft warning will be thrown, but the program can continue as normal.
 source global.conf
 source local.defaults
+
+# disable the master enable switch if all of the COM ports
+# for a particular device are disabled
+for (( i=0; i<$NUMBER_OF_NODES; ++i ))
+do
+    if [[ (${BPS_COM1[$i]} -eq 0 && ${BPS_COM2[$i]} -eq 0 && \
+           ${BPS_COM3[$i]} -eq 0) ]]
+    then
+        ENABLE[$i]=0;
+    fi
+
+    # boolean array encodes whether data should be grabbed in
+    # second node-wise for loop
+    success[$i]=0
+done
+
+TIMESTAMP=$(date -u +%Y-%m-%d-%H-%M-%S)
+printf "Beginning test log LOG-$TIMESTAMP...\n"
+for (( i=0; i<$NUMBER_OF_NODES; ++i ))
+do
+    if [[ ${ENABLE[$i]} -gt 0 ]]
+    then
+        printf "$green[${COLORS[$i]}]$end "
+    else
+        printf "$gray[${COLORS[$i]}]$end "
+    fi
+done
+printf "\n===================================================\n"
+
 if [ -f local.conf ]; then
     source local.conf
 else
@@ -46,26 +75,10 @@ fi
 # and records the timestamp to be used for the current test. the
 # timestamp is stored in $PROJECT_DIR/.timestamp.
 PROJECT_DIR=$(pwd)
-TIMESTAMP=$(date -u +%Y-%m-%d-%H-%M-%S)
 folder=data/${COLORS[0]}-"$TIMESTAMP"
 mkdir -p $folder >/dev/null 2>/dev/null
 make all >/dev/null 2>/dev/null
 echo "$TIMESTAMP" > .timestamp
-
-# disable the master enable switch if all of the COM ports
-# for a particular device are disabled
-for (( i=0; i<$NUMBER_OF_NODES; ++i ))
-do
-    if [[ (${BPS_COM1[$i]} -eq 0 && ${BPS_COM2[$i]} -eq 0 && \
-           ${BPS_COM3[$i]} -eq 0) ]]
-    then
-        ENABLE[0]=0;
-    fi
-
-    # boolean array encodes whether data should be grabbed in
-    # second node-wise for loop
-    success[$i]=0
-done
 
 # if the SPAN is enabled (if ENABLE[0] is greater than 1 in global.conf),
 # the master device will begin to take data from the SPAN as described
@@ -193,7 +206,7 @@ then
     # it waits for the user to press Q to stop the test, and prints the
     # test duration until that happens.
     BEGIN=$(date +%s)
-    warn_flag=1
+    number_of_warnings=0;
 
     while true
     do
@@ -215,12 +228,16 @@ then
             break
         fi
 
-        if [[ $warn_flag -eq 0 || $DIFF -lt 5 ]]; then continue; fi
+        (( X=DIFF > 5 && number_of_warnings < 1 ))
+        (( Y=DIFF > 60 && number_of_warnings < 2 ))
+        # (( Z=DIFF > 150 && number_of_warnings < 3 ))
+        (( PASS=X || Y ))
+        if [[ $PASS -eq 0 ]]; then continue; fi
 
         if [[ ${ENABLE[0]} -gt 0 ]]
         then
-            nf=$(find $folder/ -not -type d| wc -l)
-            ef=$(find $folder/ -empty -not -type d| wc -l)
+            nf=$(find $folder/ -not -type d -not -path '*/\.\*' | wc -l)
+            ef=$(find $folder/ -empty -not -type d -not -path '*/\.\*' | wc -l)
             if [[ $nf -eq 0 ]]
             then
                 printf "\r$yellow%-${SP}s%s$end\n" "[${COLORS[0]}]" \
@@ -237,10 +254,10 @@ then
             if [[ ${ENABLE[$i]} -eq 0 ]]; then continue; fi
             nf=$(ssh $UNAME@${LOGIN[$i]} find \
                 $PROJECT_DIR/data/${COLORS[$i]}-$TIMESTAMP/ \
-                -not -type d | wc -l)
+                -not -type d -not -path '*/\.\*' | wc -l)
             ef=$(ssh $UNAME@${LOGIN[$i]} find \
                 $PROJECT_DIR/data/${COLORS[$i]}-$TIMESTAMP/ \
-                -empty -not -type d | wc -l)
+                -empty -not -type d -not -path '*/\.\*' | wc -l)
             if [[ $nf -eq 0 ]]
             then
                 printf "\r$yellow%-${SP}s%s$end\n" "[${COLORS[$i]}]" \
@@ -252,7 +269,7 @@ then
             fi
         done
 
-        warn_flag=0
+        ((number_of_warnings++));
     done
 else
     printf "%-${SP}s%s\n" "[${COLORS[0]}]" \
@@ -318,10 +335,9 @@ do
         # move data around, rename folders, add to array of files
         if [[ -f data/${COLORS[$i]}-$TIMESTAMP/.serial ]]
         then
-            serialno=$(cat data/${COLORS[$i]}-$TIMESTAMP/.serial)
             mv data/${COLORS[$i]}-$TIMESTAMP data/$serialno-$TIMESTAMP
+            rm data/$serialno-$TIMESTAMP/.serial
         fi
-        # rm data/$serialno-$TIMESTAMP/.serial
         INS_TEXT_FILES+=("$serialno")
     fi
     # copy all other LOG folders from slave, and clean up dotfiles
@@ -426,10 +442,10 @@ fi
 printf "%-${SP}s%s\n" "[${COLORS[0]}]" "Generating reports..."
 for sn in "${INS_TEXT_FILES[@]}"
 do
-    printf "%-${SP}s%s\n" "[${COLORS[0]}]" \
-        "Writing to data/LOG-$TIMESTAMP/$sn/Accuracy Report.dingleberry"
+    printf "%-${SP}s%s%s\n" "[${COLORS[0]}]" "Writing to " \
+        "data/LOG-$TIMESTAMP/$sn-$TIMESTAMP/$sn-Accuracy-Report.csv"
     octave-cli passfail.m \
         data/LOG-$TIMESTAMP/$sn-$TIMESTAMP/$sn-$TIMESTAMP.txt \
-        data/LOG-$TIMESTAMP/SPAN-$TIMESTAMP/SPAN-$TIMESTAMP.ins
-    touch "data/LOG-$TIMESTAMP/$sn-$TIMESTAMP/Accuracy Report.dingleberry"
+        data/LOG-$TIMESTAMP/SPAN-$TIMESTAMP/SPAN-$TIMESTAMP.ins \
+        data/LOG-$TIMESTAMP/$sn-$TIMESTAMP/$sn-Accuracy-Report.csv
 done
