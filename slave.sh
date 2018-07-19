@@ -98,11 +98,13 @@ then
     printf "%-${SP}s%s\n" "[${COLORS[$1]}]" "Connected to device S/N $serialno"
     printf "%-${SP}s%s\n" "[${COLORS[$1]}]" \
         "Loaded parameters: IMU-antenna offset [${LX[$1]}, ${LY[$1]}, ${LZ[$1]}]"
+    printf "%-${SP}s%s\n" "[${COLORS[$1]}]" \
+        "Sending cmd/${CMD[$i]} over COM1"
     filename=$serialno-$TIMESTAMP\.bin
     sleep 2
     # start data stream over COM1
     app/str2str -in serial://$portname:$baudrate \
-        -out file://./$folder/$filename -c cmd/INS_OPVT2AHR.cmd 2>/dev/null &
+        -out file://./$folder/$filename -c cmd/${CMD[$1]} 2>/dev/null &
     sleep 1
 fi
 

@@ -109,10 +109,12 @@ then
             printf "$red%-${SP}s%s$end\n" "[${COLORS[0]}]" \
                 "/dev/$portname does not exist or is inaccessible"
         else
+            printf "%-${SP}s%s\n" "[${COLORS[$1]}]" \
+                "Sending cmd/${CMD[0]} over COM1"
             stty -F /dev/$portname $baudrate 2>/dev/null
             app/str2str -in serial://$portname:$baudrate \
                 -out file://./$folder/$filename \
-                -c cmd/SPAN-start.cmd 2>/dev/null &
+                -c cmd/${CMD[0]} 2>/dev/null &
         fi
     fi
     if [ ${BPS_COM3[0]} -gt 0 ]
