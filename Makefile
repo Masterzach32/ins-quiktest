@@ -7,7 +7,7 @@ EIGEN = -I /usr/include/eigen3
 all: ldprm ilconv nconv
 
 clean:
-	@rm app/ldprm app/ilconv app/nconv >/dev/null 2>/dev/null || true
+	-@rm app/ldprm app/ilconv app/nconv app/opvt >/dev/null 2>/dev/null || true
 
 install:
 	yes | sudo apt install libeigen3-dev
@@ -24,5 +24,10 @@ app/nconv: src/nconv.c
 
 ldprm: app/ldprm
 app/ldprm: src/ldprm.c
+	@mkdir -p app/ >/dev/null 2>/dev/null
+	gcc $(CFLAGS) $^ -o $@
+
+opvt: app/opvt
+app/opvt: src/opvt.c
 	@mkdir -p app/ >/dev/null 2>/dev/null
 	gcc $(CFLAGS) $^ -o $@
