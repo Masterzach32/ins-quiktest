@@ -425,6 +425,61 @@ void println_opvt2ahr(FILE *out, struct opvt2ahr_t *frame)
         ((unsigned long) frame->p_bar)*2, frame->h_bar/100.0, frame->new_gps);
 }
 
+template <typename T>
+void apply_PV_offset(T &frame, double pvoff_input[3])
+{
+    // rotations to radians; heading sign convention
+    // is inverted to follow the right-hand rule
+    double heading = (M_PI/180)*(360 - frame.heading/100.0),
+           pitch = (M_PI/180)*(frame.pitch/100.0),
+           roll = (M_PI/180)*(frame.roll/100.0);
+
+    // calculate rotation quaternion
+    // rotation convention is Z-X'-Y''
+    const Eigen::Vector3d const_offset =
+        {pvoff_input[0], pvoff_input[1], pvoff_input[2]};
+    auto qz = Eigen::AngleAxisd(heading, Eigen::Vector3d::UnitZ());
+    auto Xp = qz * Eigen::Vector3d::UnitX(),
+         Yp = qz * Eigen::Vector3d::UnitY();
+    auto qx = Eigen::AngleAxisd(pitch, Xp);
+    auto Ypp = qx * Yp;
+    auto qy = Eigen::AngleAxisd(roll, Ypp);
+    Eigen::Quaterniond qw = qz * qx * qy;
+    auto p_offset = qw * const_offset;
+    const unsigned long long R_EARTH = 6371000;
+
+    // add offset to opvt2ahr data frame before printing
+    frame.latitude += (180E9*p_offset.y())/(R_EARTH*M_PI);
+    double lat_rad = (M_PI/180)*(frame.latitude/1.0E9);
+    frame.longitude += (180E9*p_offset.x())/(R_EARTH*M_PI*cos(lat_rad));
+    frame.altitude += 1E3*p_offset.z();
+
+    // turn rate in radians per second
+    auto turn_rate = Eigen::Vector3d(
+        frame.gyro_x/1.0E5, frame.gyro_y/1.0E5, frame.gyro_z/1.0E5);
+    turn_rate = M_PI/180.0 * turn_rate;
+    auto v_offset = (qw * turn_rate).cross(qw * const_offset);
+    frame.v_east += v_offset.x();
+    frame.v_north += v_offset.y();
+    frame.v_up += v_offset.z();
+
+    /*
+    // print useful info to debug file
+    fprintf(debug, "%15lu%15.2f"
+        "%15.2f%15.2f%15.2f"
+        "%15.2f%15.2f%15.2f%15.2f"
+        "%15.5f%15.5f%15.5f"
+        "%15.3f%15.3f%15.3f"
+        "%15.3f%15.3f%15.3f\n",
+        frame.ms_gps, frame.heading/100.0,
+        heading*180/M_PI, pitch*180/M_PI, roll*180/M_PI,
+        qw.w(), qw.x(), qw.y(), qw.z(),
+        turn_rate.x(), turn_rate.y(), turn_rate.z(),
+        p_offset.x(), p_offset.y(), p_offset.z(),
+        v_offset.x(), v_offset.y(), v_offset.z());
+    */
+}
+
 const char* argument_error =
     "%s: invalid option -- '%s'\n"
     "type '%s --usage' for more info\n";
@@ -628,75 +683,22 @@ int main(int argc, char** argv)
         // rptr will point at the AA in the beginning
         // of every packet
         struct opvt2ahr_t frame;
-        int error = payload2opvt2ahr(&frame, file_buffer + rptr);
-        if (error) ++rptr;
-        else if (pvoff_flag)
+        if (payload2opvt2ahr(&frame, file_buffer + rptr))
         {
-            // rotations to radians; heading sign convention
-            // is inverted to follow the right-hand rule
-            double heading = (M_PI/180)*(360 - frame.heading/100.0),
-                   pitch = (M_PI/180)*(frame.pitch/100.0),
-                   roll = (M_PI/180)*(frame.roll/100.0);
-
-            // calculate rotation quaternion
-            // rotation convention is Z-X'-Y''
-            const Eigen::Vector3d const_offset =
-                {pvoff_input[0], pvoff_input[1], pvoff_input[2]};
-            auto qz = Eigen::AngleAxisd(heading, Eigen::Vector3d::UnitZ());
-            auto Xp = qz * Eigen::Vector3d::UnitX(),
-                 Yp = qz * Eigen::Vector3d::UnitY();
-            auto qx = Eigen::AngleAxisd(pitch, Xp);
-            auto Ypp = qx * Yp;
-            auto qy = Eigen::AngleAxisd(roll, Ypp);
-            Eigen::Quaterniond qw = qz * qx * qy;
-            auto p_offset = qw * const_offset;
-            const unsigned long long R_EARTH = 6371000;
-
-            // add offset to opvt2ahr data frame before printing
-            frame.latitude += (180E9*p_offset.y())/(R_EARTH*M_PI);
-            double lat_rad = (M_PI/180)*(frame.latitude/1.0E9);
-            frame.longitude += (180E9*p_offset.x())/(R_EARTH*M_PI*cos(lat_rad));
-            frame.altitude += 1E3*p_offset.z();
-
-            // turn rate in radians per second
-            auto turn_rate = Eigen::Vector3d(
-                frame.gyro_x/1.0E5, frame.gyro_y/1.0E5, frame.gyro_z/1.0E5);
-            turn_rate = M_PI/180.0 * turn_rate;
-            auto v_offset = (qw * turn_rate).cross(qw * const_offset);
-            frame.v_east += v_offset.x();
-            frame.v_north += v_offset.y();
-            frame.v_up += v_offset.z();
-
-            /*
-            // print useful info to debug file
-            fprintf(debug, "%15lu%15.2f"
-                "%15.2f%15.2f%15.2f"
-                "%15.2f%15.2f%15.2f%15.2f"
-                "%15.5f%15.5f%15.5f"
-                "%15.3f%15.3f%15.3f"
-                "%15.3f%15.3f%15.3f\n",
-                frame.ms_gps, frame.heading/100.0,
-                heading*180/M_PI, pitch*180/M_PI, roll*180/M_PI,
-                qw.w(), qw.x(), qw.y(), qw.z(),
-                turn_rate.x(), turn_rate.y(), turn_rate.z(),
-                p_offset.x(), p_offset.y(), p_offset.z(),
-                v_offset.x(), v_offset.y(), v_offset.z());
-            */
+            ++rptr;
+            continue;
         }
-
-        if (!error)
-        {
-            println_opvt2ahr(outfile, &frame);
-            rptr += framelen;
-        }
+        if (pvoff_flag) apply_PV_offset(frame, pvoff_input);
+        println_opvt2ahr(outfile, &frame);
+        rptr += framelen;
         fflush(outfile);
 
         progress = 100*rptr/filelen;
         if (progress != old_progress)
-            fprintf(stderr, "\r%s: Writing to %s: %2hhu%%",
-                argv[0], outfn, progress);
+            fprintf(stderr, "\r%s: Writing... %2hhu%%",
+                argv[0], progress);
     }
-    fprintf(stderr, "\r%s: Writing to %s: Done.\n", argv[0], outfn);
+    fprintf(stderr, "\r%s: Writing... Done.\n", argv[0]);
     fclose(outfile);
     // if (pvoff_flag) fclose(debug);
     return 0;
