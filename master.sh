@@ -110,7 +110,7 @@ then
                 "/dev/$portname does not exist or is inaccessible"
         else
             printf "%-${SP}s%s\n" "[${COLORS[$1]}]" \
-                "Sending cmd/${CMD[0]} over COM1"
+                "Sending cmd/${CMD_COM2[0]} over COM2"
             stty -F /dev/$portname $baudrate 2>/dev/null
             app/str2str -in serial://$portname:$baudrate \
                 -out file://./$folder/$filename \

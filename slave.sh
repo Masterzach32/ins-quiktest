@@ -100,7 +100,7 @@ then
     printf "%-${SP}s%s\n" "[${COLORS[$1]}]" \
         "Loaded parameters: IMU-antenna offset [${LX[$1]}, ${LY[$1]}, ${LZ[$1]}]"
     printf "%-${SP}s%s\n" "[${COLORS[$1]}]" \
-        "Sending cmd/${CMD[$i]} over COM1"
+        "Sending cmd/${CMD_COM1[$1]} over COM1"
     filename=$serialno-$TIMESTAMP\.bin
     sleep 2
     # start data stream over COM1
