@@ -61,6 +61,7 @@ serialno="INS"
 if [ ${BPS_COM1[$1]} -gt 0 ]
 then
     portname=$COM1 # $COM1 is the local variable defined in local.conf
+    if [[ ${RS422[$1]} -gt 0 ]]; then portname=$COM1_RS422; fi
     baudrate=${BPS_COM1[$1]}
     stty -F /dev/$portname $baudrate 2>/dev/null
     if [[ ! -e /dev/$portname ]]

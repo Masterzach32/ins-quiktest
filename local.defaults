@@ -8,6 +8,9 @@
 
 # dev serial device, excluding "/dev/"
 # -- for example, /dev/ttyUSB0 is expressed as ttyUSB0
+
 COM1=ttyUSB0
-COM2=ttyUSB1
-COM3=ttyUSB2
+COM2=ttyUSB2
+COM3=ttyUSB3
+
+COM1_RS422=ttyUSB1
