@@ -105,7 +105,7 @@ then
     sleep 2
     # start data stream over COM1
     app/str2str -in serial://$portname:$baudrate \
-        -out file://./$folder/$filename -c cmd/${CMD[$1]} 2>/dev/null &
+        -out file://./$folder/$filename -c cmd/${CMD_COM1[$1]} 2>/dev/null &
     sleep 1
 fi
 

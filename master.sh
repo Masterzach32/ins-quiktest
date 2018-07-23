@@ -114,7 +114,7 @@ then
             stty -F /dev/$portname $baudrate 2>/dev/null
             app/str2str -in serial://$portname:$baudrate \
                 -out file://./$folder/$filename \
-                -c cmd/${CMD[0]} 2>/dev/null &
+                -c cmd/${CMD_COM2[0]} 2>/dev/null &
         fi
     fi
     if [ ${BPS_COM3[0]} -gt 0 ]
