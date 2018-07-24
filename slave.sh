@@ -27,7 +27,6 @@ then
 fi
 
 # dotfiles, source variables from global and local configurations
-touch .running
 source global.conf
 if [ -f config/${LOGIN[$1]} ]; then
     source config/${LOGIN[$1]}
@@ -41,6 +40,7 @@ fi
 PROJECT_DIR=$(pwd)
 TIMESTAMP=$(cat .timestamp)
 rm .timestamp
+touch .running
 
 # make data folder and compile executables if they're dated
 folder=data/${COLORS[$1]}-$TIMESTAMP
