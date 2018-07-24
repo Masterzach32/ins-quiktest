@@ -5,4 +5,5 @@ master.sh
 .timestamp
 app/
 cmd/
+config/
 manifest.txt

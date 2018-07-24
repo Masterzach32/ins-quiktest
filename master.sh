@@ -272,10 +272,10 @@ then
 else
     printf "%-${SP}s%s\n" "[${COLORS[0]}]" \
         "$error_flag error(s) were detected during setup"
-    for (( i=0; i<$NUMBER_OF_NODES; ++i ))
-    do
-        success[$i]=0
-    done
+    # for (( i=0; i<$NUMBER_OF_NODES; ++i ))
+    # do
+    #     success[$i]=0
+    # done
 fi
 
 printf "%-${SP}s%s\n" "[${COLORS[0]}]" "Ending test..."
@@ -287,6 +287,7 @@ INS_TEXT_FILES=() # array of S/N of successfully converted text files
 # reference position, and renaming/reorganizing
 for (( i=1; i<$NUMBER_OF_NODES; ++i ))
 do
+    ssh $UNAME@${LOGIN[$i]} "killall str2str" >/dev/null 2>/dev/null
     if [[ ${ENABLE[$i]} -eq 0 || ${success[$i]} -eq 0 ]]
     then
         continue
@@ -298,7 +299,6 @@ do
     printf "%-${SP}s%s\n" "[${COLORS[$i]}]" "Grabbing INS data"
 
     # kill str2str and secure copy data from data folder
-    ssh $UNAME@${LOGIN[$i]} "killall str2str" >/dev/null 2>/dev/null
     scp -rp $UNAME@${LOGIN[$i]}:$PROJECT_DIR/data/${COLORS[$i]}-$TIMESTAMP \
         data/ >/dev/null 2>/dev/null
     if [ $? -ne 0 ]

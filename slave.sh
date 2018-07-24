@@ -33,7 +33,7 @@ if [ -f config/${LOGIN[$1]} ]; then
 else
     printf "$red%-${SP}s%s$end\n" "[${COLORS[$1]}]" \
         "No local config provided"
-    exit
+    exit 1
 fi
 
 # get the project dir and timestamp
