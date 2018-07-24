@@ -29,15 +29,12 @@ fi
 # dotfiles, source variables from global and local configurations
 touch .running
 source global.conf
-source local.defaults
-
-# load the local configuration machine-specific file, if it exists
-if [ -f local.conf ]; then
-    source local.conf
+if [ -f config/${LOGIN[$1]} ]; then
+    source config/${LOGIN[$1]}
 else
-    # throw a soft warning about lack of local config file
-    printf "$yellow%-${SP}s%s$end\n" "[${COLORS[$1]}]" \
-        "Warning: no local config provided, using local.defaults"
+    printf "$red%-${SP}s%s$end\n" "[${COLORS[$1]}]" \
+        "No local config provided"
+    exit
 fi
 
 # get the project dir and timestamp

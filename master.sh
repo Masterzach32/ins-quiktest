@@ -19,21 +19,15 @@ then
     exit
 fi
 
-touch .running # prevents slave script from running
-mkdir .error.d >/dev/null 2>/dev/null # error handling directory
-
 # this disables quitting the program using ctrl-C, because it must
 # be allowed to clean up after itself; to quit the program normally,
 # press Q/q when prompted.
 trap '' 2
 
-# the following block loads variables from global.conf and local.defaults.
-# additionally, if a local.conf file exists, it will load variables from it
-# as well; local.conf can be used to overwrite local.defaults with machine-
-# specific values, like COM port device names. if local.conf is not found,
-# a soft warning will be thrown, but the program can continue as normal.
+# the following block loads variables from global.conf and the local
+# conf file. if the local file is not found in config/, the program
+# must exit, as it does not have a proper hardware mapping.
 source global.conf
-source local.defaults
 
 # disable the master enable switch if all of the COM ports
 # for a particular device are disabled
@@ -63,11 +57,12 @@ do
 done
 printf "\n===================================================\n"
 
-if [ -f local.conf ]; then
-    source local.conf
+if [ -f config/${LOGIN[0]} ]; then
+    source config/${LOGIN[0]}
 else
-    printf "$yellow%-${SP}s%s$end\n" "[${COLORS[0]}]" \
-        "Warning: no local config provided, using local.defaults"
+    printf "$red%-${SP}s%s$end\n" "[${COLORS[0]}]" \
+        "No local config provided"
+    exit
 fi
 
 # PROJECT_DIR stores the absolute path to the project directory for
@@ -79,6 +74,7 @@ folder=data/${COLORS[0]}-"$TIMESTAMP"
 mkdir -p $folder >/dev/null 2>/dev/null
 make all >/dev/null 2>/dev/null
 echo "$TIMESTAMP" > .timestamp
+touch .running # prevents slave script from running
 
 # if the SPAN is enabled (if ENABLE[0] is greater than 1 in global.conf),
 # the master device will begin to take data from the SPAN as described
@@ -374,7 +370,7 @@ mv data/LOG data/LOG-$TIMESTAMP 2>/dev/null
 
 # kill str2str, remove dotfiles
 killall str2str >/dev/null 2>/dev/null
-rm -rf .running .timestamp .error.d
+rm -rf .running .timestamp >/dev/null 2>/dev/null
 printf "%-${SP}s%s\n" "[${COLORS[0]}]" "Done."
 
 # if the error flag is ever raised (it cannot be lowered, so
