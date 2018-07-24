@@ -170,10 +170,6 @@ An octave-cli script used to compile a report comparing the accuracy of the INS 
 ground truth SPAN solution. The report considers position and orientation accuracy
 in the regime of dynamic navigation.
 
-## ping.sh
-
-A utility application which looks for nodes on the LAN, using the hostnames provided in global.conf.
-
 ## slave.sh
 
 (This isn't as bad as it sounds, trust me)
@@ -185,3 +181,12 @@ The steps it takes are loosely described below.
 1. If enabled, apply settings to the INS over COM1 using app/ldprm.
 1. Initiate data collection over COM1, then COM2, then COM3.
 1. Exit and return an error code to the master if any errors are encountered.
+
+## util/ping.sh
+
+A utility application which looks for nodes on the LAN, using the hostnames provided in global.conf.
+
+## util/usbconf.sh
+
+A Bash script that aids the user in the creation of hardware configuration files, like
+those found in config/.
