@@ -402,6 +402,7 @@ then
                     "... "
                     "Do you feel good about yourself? "
                     "You should be working right now. "
+                    "I'm telling Jamie you're being a slacker."
                     "... "
                     "Moo. ")
         if [[ $message_count -eq ${#messages[@]} ]]

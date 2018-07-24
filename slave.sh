@@ -99,13 +99,17 @@ then
     printf "%-${SP}s%s\n" "[${COLORS[$1]}]" "Connected to device S/N $serialno"
     printf "%-${SP}s%s\n" "[${COLORS[$1]}]" \
         "Loaded parameters: IMU-antenna offset [${LX[$1]}, ${LY[$1]}, ${LZ[$1]}]"
-    printf "%-${SP}s%s\n" "[${COLORS[$1]}]" \
-        "Sending cmd/${CMD_COM1[$1]} over COM1"
     filename=$serialno-$TIMESTAMP\.bin
     sleep 2
+    if [[ -n ${CMD_COM1[$1]} ]]
+    then
+        printf "%-${SP}s%s\n" "[${COLORS[$1]}]" \
+            "Sending cmd/${CMD_COM1[$1]} over COM1"
+    fi
     # start data stream over COM1
     app/str2str -in serial://$portname:$baudrate \
-        -out file://./$folder/$filename -c cmd/${CMD_COM1[$1]} 2>/dev/null &
+        -out file://./$folder/$filename \
+        -c cmd/${CMD_COM1[$1]} 2>/dev/null &
     sleep 1
 fi
 
@@ -122,9 +126,15 @@ if [ ${BPS_COM2[$1]} -gt 0 ]; then
     fi
     baudrate=${BPS_COM2[$1]}
     filename=$serialno-$TIMESTAMP\.gps
+    if [[ -n ${CMD_COM2[$1]} ]]
+    then
+        printf "%-${SP}s%s\n" "[${COLORS[$1]}]" \
+            "Sending cmd/${CMD_COM2[$1]} over COM2"
+    fi
     stty -F /dev/$portname $baudrate 2>/dev/null
     ./app/str2str -in serial://$portname:$baudrate \
-                  -out file://./$folder/$filename 2>/dev/null &
+                  -out file://./$folder/$filename \
+                  -c cmd/${CMD_COM2[$1]} 2>/dev/null &
 fi
 
 # all data streams are detached from the current shell with the &
