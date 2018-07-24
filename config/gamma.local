@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# gamma.local
+
 # dev serial device, excluding "/dev/"
 # -- for example, /dev/ttyUSB0 is expressed as ttyUSB0
 
