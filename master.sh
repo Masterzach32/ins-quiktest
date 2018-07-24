@@ -184,7 +184,7 @@ do
 
     printf "%-${SP}s%s\n" "[${COLORS[$i]}]" \
         "Syncing repository at ${LOGIN[$i]}:$PROJECT_DIR"
-    scp -r global.conf local.defaults slave.sh master.sh .timestamp bin/ \
+    scp -r $(paste -s -d ' ' manifest.txt) \
         $UNAME@${LOGIN[$i]}:$PROJECT_DIR >/dev/null 2>/dev/null
     printf "%-${SP}s%s\n" "[${COLORS[$i]}]" "Starting INS data"
     ssh $UNAME@${LOGIN[$i]} -t "cd $PROJECT_DIR; bash slave.sh $i" 2>/dev/null
@@ -402,7 +402,7 @@ then
                     "... "
                     "Do you feel good about yourself? "
                     "You should be working right now. "
-                    "I'm telling Jamie you're being a slacker."
+                    "I'm telling Jamie you're being a slacker. "
                     "... "
                     "Moo. ")
         if [[ $message_count -eq ${#messages[@]} ]]

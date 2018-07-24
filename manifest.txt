@@ -1,0 +1,8 @@
+global.conf
+local.defaults
+slave.sh
+master.sh
+.timestamp
+app/
+cmd/
+manifest.txt
