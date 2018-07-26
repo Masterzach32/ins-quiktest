@@ -180,7 +180,7 @@ do
 
     printf "%-${SP}s%s\n" "[${COLORS[$i]}]" \
         "Syncing repository at ${LOGIN[$i]}:$PROJECT_DIR"
-    scp -r $(paste -s -d ' ' manifest.txt) \
+    scp -r $(paste -s -d ' ' config/manifest.txt) \
         $UNAME@${LOGIN[$i]}:$PROJECT_DIR >/dev/null 2>/dev/null
     printf "%-${SP}s%s\n" "[${COLORS[$i]}]" "Starting INS data"
     ssh $UNAME@${LOGIN[$i]} -t "cd $PROJECT_DIR; bash slave.sh $i" 2>/dev/null
