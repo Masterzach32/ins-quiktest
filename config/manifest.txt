@@ -1,6 +1,5 @@
 slave.sh
 master.sh
-.timestamp
-app/
+app/ldprm
 cmd/
 config/

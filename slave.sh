@@ -6,16 +6,9 @@
 # the .project file is found in the project directory */ins-quiktest/, and
 # all scripts depend on being run from this directory. therefore the slave
 # script will not run if .project is not present.
-# furthermore, .timestamp MUST be present, because this indicates that
-# the master device has initiated the slave script.
 if [[ ! -f .project ]] # working dir is not in project
 then
     echo "$0: must be run from within ins-quiktest project directory"
-    exit 1
-fi
-if [[ ! -f .timestamp ]] # file created by master
-then
-    echo "$0: can only be executed by master device"
     exit 1
 fi
 

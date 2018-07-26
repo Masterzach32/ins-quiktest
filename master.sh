@@ -6,18 +6,13 @@
 # the .project file is found in the project directory */ins-quiktest/, and
 # all scripts depend on being run from this directory. therefore the master
 # script will not run if .project is not present.
-# furthermore, .timestamp must NOT be present, because this indicates that
-# the master or slave script is already being run on this machine.
 if [[ ! -f .project ]] # working dir is not in project
 then
     echo "$0: must be run from within ins-quiktest project directory"
     exit
 fi
-if [[ -f .timestamp ]] # test is already running
-then
-    echo "$0: already running on this machine; only one instance allowed"
-    exit
-fi
+
+util/sync.sh
 
 # this disables quitting the program using ctrl-C, because it must
 # be allowed to clean up after itself; to quit the program normally,
@@ -178,9 +173,9 @@ do
         ((error_flag++))
     fi
 
-    printf "%-${SP}s%s\n" "[${COLORS[$i]}]" \
-        "Syncing repository at ${LOGIN[$i]}:$PROJECT_DIR"
-    scp -r $(paste -s -d ' ' config/manifest.txt) \
+    # printf "%-${SP}s%s\n" "[${COLORS[$i]}]" \
+    #     "Syncing repository at ${LOGIN[$i]}:$PROJECT_DIR"
+    scp .timestamp \ # $(paste -s -d ' ' config/manifest.txt) \
         $UNAME@${LOGIN[$i]}:$PROJECT_DIR >/dev/null 2>/dev/null
     printf "%-${SP}s%s\n" "[${COLORS[$i]}]" "Starting INS data"
     ssh $UNAME@${LOGIN[$i]} -t "cd $PROJECT_DIR; bash slave.sh $i" 2>/dev/null
