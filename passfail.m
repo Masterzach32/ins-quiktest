@@ -1,8 +1,9 @@
 #!/usr/bin/octave-cli
+
+# passfail.m
+
 format bank
 args = argv();
-
-%What you need to do now is add the position file and figure out how to catch errors like the timestamp onei
 
 INS_filename = 'sample/LOG-2018-07-04-18-22-16/F1691030-2018-07-04-18-22-16/F1691030-2018-07-04-18-22-16.txt';
 SPAN_filename = 'sample/LOG-2018-07-04-18-22-16/SPAN-2018-07-04-18-22-16/SPAN-2018-07-04-18-22-16.txt';
@@ -12,8 +13,6 @@ if length(args) == 3
     INS_filename = args{1};
     SPAN_filename = args{2};
     out_filename = args{3};
-else
-    printf('(GIMME TWO ARGUMENTS, YO)\n');
 end
 
 f1=dlmread(INS_filename,'',8,0);
@@ -34,26 +33,24 @@ f1_roll=f1(:,3);
 f1_lat=f1(:,16);
 f1_lon=f1(:,17);
 f1_alt=f1(:,18);
-%f2_heading=f2(:,1);
-%f2_pitch=f2(:,2);
-%f2_roll=f2(:,3);
-%f2_lat=f2(:,16);
-%f2_lon=f2(:,17);
-%f2_alt=f2(:,18);
+% f2_heading=f2(:,1);
+% f2_pitch=f2(:,2);
+% f2_roll=f2(:,3);
+% f2_lat=f2(:,16);
+% f2_lon=f2(:,17);
+% f2_alt=f2(:,18);
 
-%Concatenating for tables 
+% Concatenating for tables
 t1=[f1_time,f1_heading, f1_pitch, f1_roll, f1_lat, f1_lon, f1_alt];
 %t2=[f2_time,f2_heading, f2_pitch, f2_roll, f2_lat, f2_lon, f2_alt];
 t_span=[span_time,span_heading, span_pitch, span_roll, span_lat, span_lon, span_alt];
 
-%array_intersect A is f1 and B is span
+% array_intersect A is f1 and B is span
 [~, ind_ins, ind_span]=intersect(round(f1_time/5)*5,span_time);
 f1=t1(ind_ins,:);
 span=t_span(ind_span,:);
-%f1 and span are time intersected tables
-%Now, find the index you need to start evaluating the test from)
-
-
+% f1 and span are time intersected tables
+% Now, find the index you need to start evaluating the test from)
 
 span_lat=span(:,5);
 for i=1:length(span_lat)
@@ -64,9 +61,9 @@ end
 
 f1=f1(i:end,:);
 span=span(i:end,:);
-clear i 
+clear i
 
-%Reassigning parameters:
+% Reassigning parameters:
 f1_time=f1(:,1);
 f1_heading=f1(:,2);
 f1_pitch=f1(:,3);
@@ -80,17 +77,19 @@ span_pitch=span(:,3);
 span_roll=span(:,4);
 span_lat=span(:,5);
 span_lon=span(:,6);
-span_alt=span(:,7);;
+span_alt=span(:,7);
 
-%Check if this is still applicable 
-f1_alt=f1_alt-33.5;
-%poserr 
+% Check if this is still applicable
+% f1_alt=f1_alt-33.5;
+
+% poserr
 radius_earth=6371000;
 pos1=[f1_lat, f1_lon, f1_alt];
 pos2=[span_lat, span_lon, span_alt];
 delta=zeros(size(pos1));
 delta(:,1) = radius_earth.*sin(pi/180.*(pos1(:,1) -pos2(:,1)));
-delta(:,2) = radius_earth * sin(pi/180*(pos1(:,2) - pos2(:,2))).* cos(pi/180*(pos1(:,1) - pos2(:,1)));
+delta(:,2) = radius_earth * sin(pi/180*(pos1(:,2) - pos2(:,2))).* ...
+    cos(pi/180*(pos1(:,1) - pos2(:,1)));
 delta(:,3) = pos1(:,3)-pos2(:,3);
 
 Result_Time = span_time;
@@ -105,7 +104,7 @@ Result_err_lat = delta(:,1);
 Result_err_lon = delta(:,2);
 Result_err_alt = delta(:,3);
 
-%atterr 
+%atterr
 Att1=[f1_heading, f1_pitch, f1_roll];
 Att2=[span_heading,span_pitch, span_roll];
 clear pi
@@ -130,18 +129,9 @@ Result_SPAN_heading, Result_SPAN_pitch, Result_SPAN_roll,...
 Result_err_heading, Result_err_pitch, Result_err_roll
 ];
 
-%Header={'Time','Minutes','INS','INS'}
-%Result=Result(1:10,1);
-%Header (1,1)
-%Result=[Header(1,1);Result];
-%Result (1:10,:)
-
-%csvwrite (out_filename, Result)
-
 fileID = fopen(out_filename,'w');
 fprintf(fileID,'Time,Minutes,INS_Lat,INS_Lon,INS_alt,SPAN_lat,SPAN_long,SPAN_alt,Err_lat,Err_lon,Err_alt,INS_heading,INS_pitch,INS_roll,SPAN_heading,SPAN_pitch,SPAN_roll,Err_heading,Err_pitch,Err_roll\n');
 for i=1:length(Result)
-fprintf(fileID, '%d,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f\n',Result(i,:));
+    fprintf(fileID, '%d,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f\n',Result(i,:));
 end
 fclose(fileID);
-

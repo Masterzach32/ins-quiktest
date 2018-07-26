@@ -1,6 +1,6 @@
 #!/bin/bash
 
-error_flag=0 # counts the number of errors thrown
+# master.sh
 
 # the following blocks check for the existence of .project and .timestamp;
 # the .project file is found in the project directory */ins-quiktest/, and
@@ -8,12 +8,12 @@ error_flag=0 # counts the number of errors thrown
 # script will not run if .project is not present.
 # furthermore, .timestamp must NOT be present, because this indicates that
 # the master or slave script is already being run on this machine.
-if [ ! -f .project ] # working dir is not in project
+if [[ ! -f .project ]] # working dir is not in project
 then
     echo "$0: must be run from within ins-quiktest project directory"
     exit
 fi
-if [ -f .timestamp ] # test is already running
+if [[ -f .timestamp ]] # test is already running
 then
     echo "$0: already running on this machine; only one instance allowed"
     exit
@@ -57,7 +57,7 @@ do
 done
 printf "\n===================================================\n"
 
-if [ -f config/${LOGIN[0]} ]; then
+if [[ -f config/${LOGIN[0]} ]]; then
     source config/${LOGIN[0]}
 else
     printf "$red%-${SP}s%s$end\n" "[${COLORS[0]}]" \
@@ -74,7 +74,7 @@ folder=data/${COLORS[0]}-"$TIMESTAMP"
 mkdir -p $folder >/dev/null 2>/dev/null
 make all >/dev/null 2>/dev/null
 echo "$TIMESTAMP" > .timestamp
-touch .running # prevents slave script from running
+error_flag=0 # counts the number of errors thrown
 
 # if the SPAN is enabled (if ENABLE[0] is greater than 1 in global.conf),
 # the master device will begin to take data from the SPAN as described
@@ -93,7 +93,7 @@ then
 
     success[0]=1
 
-    if [ ${BPS_COM2[0]} -gt 0 ]
+    if [[ ${BPS_COM2[0]} -gt 0 ]]
     then
         portname=$COM2
         baudrate=${BPS_COM2[0]}
@@ -113,7 +113,7 @@ then
                 -c cmd/${CMD_COM2[0]} 2>/dev/null &
         fi
     fi
-    if [ ${BPS_COM3[0]} -gt 0 ]
+    if [[ ${BPS_COM3[0]} -gt 0 ]]
     then
         portname=$COM3
         baudrate=${BPS_COM3[0]}
@@ -272,10 +272,10 @@ then
 else
     printf "%-${SP}s%s\n" "[${COLORS[0]}]" \
         "$error_flag error(s) were detected during setup"
-    # for (( i=0; i<$NUMBER_OF_NODES; ++i ))
-    # do
-    #     success[$i]=0
-    # done
+    for (( i=0; i<$NUMBER_OF_NODES; ++i ))
+    do
+        success[$i]=0
+    done
 fi
 
 printf "%-${SP}s%s\n" "[${COLORS[0]}]" "Ending test..."
@@ -287,6 +287,7 @@ INS_TEXT_FILES=() # array of S/N of successfully converted text files
 # reference position, and renaming/reorganizing
 for (( i=1; i<$NUMBER_OF_NODES; ++i ))
 do
+    # kill str2str
     ssh $UNAME@${LOGIN[$i]} "killall str2str" >/dev/null 2>/dev/null
     if [[ ${ENABLE[$i]} -eq 0 || ${success[$i]} -eq 0 ]]
     then
@@ -298,10 +299,10 @@ do
 
     printf "%-${SP}s%s\n" "[${COLORS[$i]}]" "Grabbing INS data"
 
-    # kill str2str and secure copy data from data folder
+    # copy data from data folder
     scp -rp $UNAME@${LOGIN[$i]}:$PROJECT_DIR/data/${COLORS[$i]}-$TIMESTAMP \
         data/ >/dev/null 2>/dev/null
-    if [ $? -ne 0 ]
+    if [[ $? -ne 0 ]]
     then
         # throw an error if secure copy fails
         printf "$red%-${SP}s%s\n$end" "[${COLORS[$i]}]" \
@@ -322,7 +323,7 @@ do
         serialno=$(cat data/${COLORS[$i]}-$TIMESTAMP/.serial)
         app/ilconv data/${COLORS[$i]}-$TIMESTAMP/$serialno-$TIMESTAMP.bin \
             --pvoff $PVX $PVY $PVZ >/dev/null 2>/dev/null
-        if [ $? -ne 0 ]
+        if [[ $? -ne 0 ]]
         then
             # throw an error if conversion fails
             printf "$red%-${SP}s%s\n$end" "[${COLORS[$i]}]" \
@@ -341,7 +342,7 @@ do
     # copy all other LOG folders from slave, and clean up dotfiles
     scp -rp $UNAME@${LOGIN[$i]}:$PROJECT_DIR/data/LOG-* data/ >/dev/null 2>/dev/null
     ssh $UNAME@${LOGIN[$i]} -t "cd $PROJECT_DIR &&\
-        rm -rf data .running" >/dev/null 2>/dev/null
+        rm -rf data" >/dev/null 2>/dev/null
 done
 
 # if the SPAN is enabled, convert the data to INSPVAA log
@@ -370,7 +371,7 @@ mv data/LOG data/LOG-$TIMESTAMP 2>/dev/null
 
 # kill str2str, remove dotfiles
 killall str2str >/dev/null 2>/dev/null
-rm -rf .running .timestamp >/dev/null 2>/dev/null
+rm -rf .timestamp >/dev/null 2>/dev/null
 printf "%-${SP}s%s\n" "[${COLORS[0]}]" "Done."
 
 # if the error flag is ever raised (it cannot be lowered, so
@@ -429,7 +430,7 @@ fi
 # 'Y' or 'y' to afirm, or any key to dismiss
 printf "%-${SP}s%s" "[${COLORS[0]}]" "Generate report? [y/n] "
 read -N 1 input
-if [[ $input = "y" ]] || [[ $input = "Y" ]]; then
+if [[ $input = "y" || $input = "Y" ]]; then
     echo
 else
     echo
