@@ -32,13 +32,48 @@ Note that node #0 is always the master. For example, node #2's name can be found
 login address can be found in `LOGIN[2]`, its enable status in `ENABLE[2]`, and the baudrate of its
 COM2 port in `BPS_COM2[2]`.
 
+#### NUMBER_OF_NODES
+This describes the number of devices involved in the network, including the master device.
+Ensure `NUMBER_OF_NODES` is not greater than the number of elements in any of the arrays below.
+#### COLORS
+This formerly contained literal colors, but now is just a list of names for humans to call the
+master and slave devices by.
+#### UNAME
+The login username for each of the Raspberry Pi devices.
+#### LOGIN
+The login address of each Pi. It is recommended to use the .local domain, as this is robust
+to changes in IP address due to network alterations.
+#### ENABLE
+This is the master enable/disable switch for each device. 0 indicates OFF, greater than 0
+indicates ON.
+#### BPS_COM1, BPS_COM2, BPS_COM3
+These arrays describe the baudrates for every COM port in the system; there is no error checking
+for these arrays, and incorrect or misspelled baudrates will be used verbatim. Zeroes in these
+arrays are semantically identical to a disable of that particular port.
+#### RS_422
+This is a switch similar to `ENABLE`; this enables the RS-422 interface for a given node. 0 indicates
+RS-232, and any number greater than 0 indictates RS-422.
+#### CMD_COM1, CMD_COM2
+These arrays list the commands to be sent to specific COM ports to begin the test. The files
+listed here will be preprended with "cmd/", as all command files are stored in the cmd/ directory.
+As an example, if one wanted to send the command described in cmd/INS_OPVT.cmd to COM1 on the the 3rd node,
+the assignment `CMD_COM1[3]="INS_OPVT.cmd"` will suffice.
+#### LX, LY, LZ
+The IMU to antenna offset of the SPAN and INS units are all described here, in meters. The unit vectors
+are as follows: x points towards the right side of the vehicle, y towards the front, and z upwards,
+forming a right handed coordinate system. These values are loaded into each INS before the test,
+and to apply PV offsets to the INS logs; note that the SPAN's internal IMU offset is set by the command
+cmd/SPAN-start.cmd, and may differ from the elements `LX[0]`, `LY[0]`, and `LZ[0]`.
+#### SP, red, green, yellow, grey, end
+The remaining variables are cosmetic, and enumerate colors and spacing for the console output.
+
 ## config/manifest.txt
 
 This file lists all files which will be copied from the master device to each of the slaves
 before every test; files and directories can be delimited by newlines or spaces, and directories
 should be followed by a forward slash, as in cmd/ or src/.
 
-## config/*.local
+## config/\*.local
 
 .local files in config/ describe hardware serial port configurations for a
 specific machine. These files allow COM ports to be properly mapped
@@ -113,41 +148,6 @@ This enables the safe use of relative filepaths.
 
 Enumerates make recipes for the binary executables which will be placed into app/,
 and for which sources files can be found in src/.
-
-#### NUMBER_OF_NODES
-This describes the number of devices involved in the network, including the master device.
-Ensure `NUMBER_OF_NODES` is not greater than the number of elements in any of the arrays below.
-#### COLORS
-This formerly contained literal colors, but now is just a list of names for humans to call the
-master and slave devices by.
-#### UNAME
-The login username for each of the Raspberry Pi devices.
-#### LOGIN
-The login address of each Pi. It is recommended to use the .local domain, as this is robust
-to changes in IP address due to network alterations.
-#### ENABLE
-This is the master enable/disable switch for each device. 0 indicates OFF, greater than 0
-indicates ON.
-#### BPS_COM1, BPS_COM2, BPS_COM3
-These arrays describe the baudrates for every COM port in the system; there is no error checking
-for these arrays, and incorrect or misspelled baudrates will be used verbatim. Zeroes in these
-arrays are semantically identical to a disable of that particular port.
-#### RS_422
-This is a switch similar to `ENABLE`; this enables the RS-422 interface for a given node. 0 indicates
-RS-232, and any number greater than 0 indictates RS-422.
-#### CMD_COM1, CMD_COM2
-These arrays list the commands to be sent to specific COM ports to begin the test. The files
-listed here will be preprended with "cmd/", as all command files are stored in the cmd/ directory.
-As an example, if one wanted to send the command described in cmd/INS_OPVT.cmd to COM1 on the the 3rd node,
-the assignment `CMD_COM1[3]="INS_OPVT.cmd"` will suffice.
-#### LX, LY, LZ
-The IMU to antenna offset of the SPAN and INS units are all described here, in meters. The unit vectors
-are as follows: x points towards the right side of the vehicle, y towards the front, and z upwards,
-forming a right handed coordinate system. These values are loaded into each INS before the test,
-and to apply PV offsets to the INS logs; note that the SPAN's internal IMU offset is set by the command
-cmd/SPAN-start.cmd, and may differ from the elements `LX[0]`, `LY[0]`, and `LZ[0]`.
-#### SP, red, green, yellow, grey, end
-The remaining variables are cosmetic, and enumerate colors and spacing for the console output.
 
 ## master.sh
 
