@@ -11,8 +11,7 @@ then
     exit
 fi
 
-printf "Enter the name of the config file: "
-read filename
+filename=$(hostname).local
 
 if [[ -f config/$filename ]]; then
     printf "Warning: config/$filename will be overwritten. "
