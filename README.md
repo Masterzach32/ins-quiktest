@@ -18,11 +18,30 @@ binary traffic from point A to point B, whether the points be serial devices, NT
 All of the tool's ASCII and hex commands are kept in the cmd/ directory. These files describe discrete commands
 to be sent to the INS, SPAN, or other device, and are usually used in tandem with str2str.
 
-## config/
+## config/global.conf
 
-Bash variable configuration files are saved here. Files in config/ describe hardware
-serial port configurations for a specific machine, and override certain default
-variables described further down. These files allow COM ports to be properly mapped
+This file declares all Bash variables which will be shared between the master and slave
+devices; these include COM port baudrates, network hostnames, logins, terminal colors,
+master enable/disable switches, etc.
+
+The user should do the vast majority of configuring the test tool only by editing this file.
+A short description of the contained variables follows.
+
+A note: for all of these arrays, elements of the same index describe the same device.
+Note that node #0 is always the master. For example, node #2's name can be found in `COLOR[2]`,
+login address can be found in `LOGIN[2]`, its enable status in `ENABLE[2]`, and the baudrate of its
+COM2 port in `BPS_COM2[2]`.
+
+## config/manifest.txt
+
+This file lists all files which will be copied from the master device to each of the slaves
+before every test; files and directories can be delimited by newlines or spaces, and directories
+should be followed by a forward slash, as in cmd/ or src/.
+
+## config/*.local
+
+.local files in config/ describe hardware serial port configurations for a
+specific machine. These files allow COM ports to be properly mapped
 onto their device names, found in /dev/serial/by-id/.
 
 ## sample/
@@ -95,20 +114,6 @@ This enables the safe use of relative filepaths.
 Enumerates make recipes for the binary executables which will be placed into app/,
 and for which sources files can be found in src/.
 
-## global.conf
-
-This file declares all Bash variables which will be shared between the master and slave
-devices; these include COM port baudrates, network hostnames, logins, terminal colors,
-master enable/disable switches, etc.
-
-The user should do the vast majority of configuring the test tool only by editing this file.
-A short description of the contained variables follows.
-
-A note: for all of these arrays, elements of the same index describe the same device.
-Note that node #0 is always the master. For example, node #2's name can be found in `COLOR[2]`,
-login address can be found in `LOGIN[2]`, its enable status in `ENABLE[2]`, and the baudrate of its
-COM2 port in `BPS_COM2[2]`.
-
 #### NUMBER_OF_NODES
 This describes the number of devices involved in the network, including the master device.
 Ensure `NUMBER_OF_NODES` is not greater than the number of elements in any of the arrays below.
@@ -143,12 +148,6 @@ and to apply PV offsets to the INS logs; note that the SPAN's internal IMU offse
 cmd/SPAN-start.cmd, and may differ from the elements `LX[0]`, `LY[0]`, and `LZ[0]`.
 #### SP, red, green, yellow, grey, end
 The remaining variables are cosmetic, and enumerate colors and spacing for the console output.
-
-## manifest.txt
-
-This file lists all files which will be copied from the master device to each of the slaves
-before every test; files and directories can be delimited by newlines or spaces, and directories
-should be followed by a forward slash, as in cmd/ or src/.
 
 ## master.sh
 

@@ -13,7 +13,7 @@ then
     exit
 fi
 
-source global.conf
+source config/global.conf
 
 for (( i=0; i<$NUMBER_OF_NODES; ++i ))
 do

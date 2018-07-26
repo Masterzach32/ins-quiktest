@@ -27,7 +27,7 @@ trap '' 2
 # the following block loads variables from global.conf and the local
 # conf file. if the local file is not found in config/, the program
 # must exit, as it does not have a proper hardware mapping.
-source global.conf
+source config/global.conf
 
 # disable the master enable switch if all of the COM ports
 # for a particular device are disabled

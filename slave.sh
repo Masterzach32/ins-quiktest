@@ -20,7 +20,7 @@ then
 fi
 
 # dotfiles, source variables from global and local configurations
-source global.conf
+source config/global.conf
 if [[ -f config/${LOGIN[$1]} ]]; then
     source config/${LOGIN[$1]}
 else
