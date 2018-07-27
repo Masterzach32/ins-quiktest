@@ -1,0 +1,11 @@
+#!/bin/bash
+
+# delta.local
+
+# dev serial device, excluding "/dev/"
+# -- for example, /dev/ttyUSB0 is expressed as ttyUSB0
+
+COM1=serial/by-id/usb-FTDI_FT230X_Basic_UART_DO00WOMZ-if00-port0
+COM1_RS422=serial/by-id/usb-FTDI_FT232R_USB_UART_A92FQ6QS-if00-port0
+COM2=serial/by-id/usb-FTDI_FT230X_Basic_UART_DO00X53P-if00-port0
+COM3=serial/by-id/usb-FTDI_FT230X_Basic_UART_DO00WON3-if00-port0

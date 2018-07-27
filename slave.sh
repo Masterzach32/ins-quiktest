@@ -1,43 +1,25 @@
 #!/bin/bash
 
-error_flag=0;
+# slave.sh
 
 # the following blocks check for the existence of .project and .timestamp;
 # the .project file is found in the project directory */ins-quiktest/, and
 # all scripts depend on being run from this directory. therefore the slave
 # script will not run if .project is not present.
-# furthermore, .timestamp MUST be present, because this indicates that
-# the master device has initiated the slave script. once the slave is
-# started, the .running file is created, so as to prevent another slave
-# instance from beginning.
-if [ ! -f .project ] # working dir is not in project
+if [[ ! -f .project ]] # working dir is not in project
 then
     echo "$0: must be run from within ins-quiktest project directory"
     exit 1
 fi
-if [ ! -f .timestamp ] # file created by master
-then
-    echo "$0: can only be executed by master device"
-    exit 1
-fi
-if [ -f .running ] # file created by slave
-then
-    echo "$0: already running on this machine; only one instance allowed"
-    exit 1
-fi
 
 # dotfiles, source variables from global and local configurations
-touch .running
-source global.conf
-source local.defaults
-
-# load the local configuration machine-specific file, if it exists
-if [ -f local.conf ]; then
-    source local.conf
+source config/global.conf
+if [[ -f config/${LOGIN[$1]} ]]; then
+    source config/${LOGIN[$1]}
 else
-    # throw a soft warning about lack of local config file
-    printf "$yellow%-${SP}s%s$end\n" "[${COLORS[$1]}]" \
-        "Warning: no local config provided, using local.defaults"
+    printf "$red%-${SP}s%s$end\n" "[${COLORS[$1]}]" \
+        "No local config provided"
+    exit 1
 fi
 
 # get the project dir and timestamp
@@ -58,16 +40,17 @@ printf "%-${SP}s%s\n" "[${COLORS[$1]}]" \
 serialno="INS"
 
 # INS parameters are read and written over COM1
-if [ ${BPS_COM1[$1]} -gt 0 ]
+if [[ ${BPS_COM1[$1]} -gt 0 ]]
 then
     portname=$COM1 # $COM1 is the local variable defined in local.conf
+    if [[ ${RS422[$1]} -gt 0 ]]; then portname=$COM1_RS422; fi
     baudrate=${BPS_COM1[$1]}
     stty -F /dev/$portname $baudrate 2>/dev/null
     if [[ ! -e /dev/$portname ]]
     then
         printf "$red%-${SP}s%s$end\n" "[${COLORS[$1]}]" \
             "/dev/$portname does not exist or is inaccessible"
-        rm -rf data/ .running
+        rm -rf data/
         exit 1
     fi
 
@@ -85,12 +68,11 @@ then
               --baud ${BPS_COM1[$1]} 2>/dev/null)"
 
     # if the serial number is empty, this indicates a failure to connect to
-    # the INS; an errror will be thrown, and a file copied to the master error
-    # directory, .error.d/
-    if [ -z "$serialno" ]; then
+    # the INS; the script exits and returns an error
+    if [[ -z "$serialno" ]]; then
         printf "$red%-${SP}s%s$end\n" "[${COLORS[$1]}]" \
             "Failed to establish INS connection"
-        rm -rf data/ .running
+        rm -rf data/
         exit 1
     fi
     # serial number is stored in dotfile, .serial
@@ -100,41 +82,52 @@ then
         "Loaded parameters: IMU-antenna offset [${LX[$1]}, ${LY[$1]}, ${LZ[$1]}]"
     filename=$serialno-$TIMESTAMP\.bin
     sleep 2
+    if [[ -n ${CMD_COM1[$1]} ]]
+    then
+        printf "%-${SP}s%s\n" "[${COLORS[$1]}]" \
+            "Sending cmd/${CMD_COM1[$1]} over COM1"
+    fi
     # start data stream over COM1
     app/str2str -in serial://$portname:$baudrate \
-        -out file://./$folder/$filename -c cmd/INS_OPVT2AHR.cmd 2>/dev/null &
+        -out file://./$folder/$filename \
+        -c cmd/${CMD_COM1[$1]} 2>/dev/null &
     sleep 1
 fi
 
-# similarly for COM2; port is defined in local.conf, baudrate in global.conf;
+# similarly for COM2; port is defined in config/*.local, baudrate in global.conf;
 # data stream established using str2str
-if [ ${BPS_COM2[$1]} -gt 0 ]; then
+if [[ ${BPS_COM2[$1]} -gt 0 ]]; then
     portname=$COM2
     if [[ ! -e /dev/$portname ]]
     then
         printf "$red%-${SP}s%s$end\n" "[${COLORS[$1]}]" \
             "/dev/$portname does not exist or is inaccessible"
-        rm -rf data/ .running
+        rm -rf data/
         exit 1
     fi
     baudrate=${BPS_COM2[$1]}
     filename=$serialno-$TIMESTAMP\.gps
+    if [[ -n ${CMD_COM2[$1]} ]]
+    then
+        printf "%-${SP}s%s\n" "[${COLORS[$1]}]" \
+            "Sending cmd/${CMD_COM2[$1]} over COM2"
+    fi
     stty -F /dev/$portname $baudrate 2>/dev/null
     ./app/str2str -in serial://$portname:$baudrate \
-                  -out file://./$folder/$filename 2>/dev/null &
+                  -out file://./$folder/$filename \
+                  -c cmd/${CMD_COM2[$1]} 2>/dev/null &
 fi
 
 # all data streams are detached from the current shell with the &
 # operator, so when this script exits they will still run, until
 # the master device runs 'killall str2str'
-if [ ${BPS_COM3[$1]} -gt 0 ]; then
+if [[ ${BPS_COM3[$1]} -gt 0 ]]; then
     portname=$COM3
     if [[ ! -e /dev/$portname ]]
     then
-        ((error_flag++))
         printf "$red%-${SP}s%s$end\n" "[${COLORS[$1]}]" \
             "/dev/$portname does not exist or is inaccessible"
-        rm -rf data/ .running
+        rm -rf data/
         exit 1
     fi
     baudrate=${BPS_COM3[$1]}

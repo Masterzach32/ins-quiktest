@@ -5,6 +5,7 @@ setimutoantoffset -0.02 -1.09 1.23 0.02 0.02 0.02
 undulation user 0.0
 interfacemode com2 novatel novatel
 interfacemode com3 auto novatel
+inscommand enable
 
 log interfacemodeb once
 log serialconfigb once
